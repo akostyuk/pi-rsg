@@ -5,9 +5,9 @@ Reverse-engineer comprehensive specification documents from existing codebases t
 ## Install
 
 ```bash
-pi install ~/PROJECTS/pi-rsg
-# or from git:
-pi install git:github.com/user/pi-rsg@v0.4.2
+git clone https://github.com/akostyuk/pi-rsg.git
+cd pi-rsg
+pi install .
 ```
 
 ## Usage
