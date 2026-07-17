@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Artifact directory renamed**: `.pi-rsg/` → `rds/` (Reverse-Designed Specs). All scripts, templates, agent prompts, and documentation updated. `rds/` is no longer a hidden directory — visible in project root alongside `.gitignore`. Archive path: `rds/archive/<session-name>/`.
+
 ### Added
 - `scripts/source-map.py` wrapper — resolves its own location at runtime so `source_map_v2` works from **any working directory**. Agent no longer needs to `cd` or guess paths.
 - Mermaid format requirement — ASCII-art diagrams explicitly forbidden; all diagrams MUST be ` ```mermaid ` fenced blocks.
 - Mermaid self-validation — agent must verify diagram syntax before saving (no `state X --> Y:` anti-pattern, no bare `graph` without direction, ER cardinality required).
 - `coverage-check.py` Mermaid syntax validation — new check #13: structural validation of every ` ```mermaid ` block (unclosed fences, invalid syntax patterns).
-- `archive-session.py` — packs `.pi-rsg/` artifacts into `.pi-rsg/analysis/<session-name>/` and cleans stale state for the next run. Archives both `drafts/` and `final/`, then removes all files from both directories.
+- `archive-session.py` — packs `rds/` artifacts into `rds/archive/<session-name>/` and cleans stale state for the next run. Archives both `drafts/` and `final/`, then removes all files from both directories.
 - `HELP.md` — concise reference guide for quick start, common commands, and troubleshooting.
 
 ## [0.1.0] — 2026-07-17

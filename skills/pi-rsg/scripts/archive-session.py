@@ -3,7 +3,7 @@
 pi-rsg archive-session.py
 
 Упаковывает артефакты текущей сессии pi-rsg в отдельный каталог
-`analysis/<session-name>/`, затем очищает `.pi-rsg/` для новой сессии.
+`analysis/<session-name>/`, затем очищает `rds/` для новой сессии.
 
 Использование:
     python archive-session.py [--session-name <name>] [--dry-run]
@@ -14,13 +14,13 @@ pi-rsg archive-session.py
 Аргументы:
     --session-name   Имя сессии (по умолчанию auto-generated)
     --dry-run        Показать что будет сделано, но не выполнять
-    --target-dir     Путь к .pi-rsg (по умолчанию .pi-rsg в текущем каталоге)
+    --target-dir     Путь к rds (по умолчанию rds в текущем каталоге)
     --output-dir     Путь для архива (по умолчанию analysis/ в текущем каталоге)
 
 Что сохраняется:
-    - Все JSON-файлы (.pi-rsg/*.json): goal.json, state.json, inventory.json,
+    - Все JSON-файлы (rds/*.json): goal.json, state.json, inventory.json,
       wbs.json, questions.json, source-map.json, trace.json, coverage-report.json
-    - Все MD-файлы (.pi-rsg/*.md): recon-report.md, coverage-report.md
+    - Все MD-файлы (rds/*.md): recon-report.md, coverage-report.md
     - Каталог drafts/ (все черновики глав)
     - Каталог final/ (финальная спецификация)
 
@@ -29,7 +29,7 @@ pi-rsg archive-session.py
     - state.json, questions.json (состояние сессии)
     - coverage-report.json/md (отчёт проверки — тоже в архиве)
 
-Что сохраняется в .pi-rsg/ после очистки:
+Что сохраняется в rds/ после очистки:
     - goal.json (цели сессии — могут понадобиться для новой сессии)
     - recon-report.md (рекон — справочная информация)
     - inventory.json, wbs.json (инвентарь и WBS — справочная информация)
@@ -59,7 +59,7 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Archive pi-rsg session artifacts and clean .pi-rsg/"
+        description="Archive pi-rsg session artifacts and clean rds/"
     )
     parser.add_argument(
         "--session-name",
@@ -75,14 +75,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--target-dir",
         type=str,
-        default=".pi-rsg",
-        help="Path to .pi-rsg directory (default: .pi-rsg)",
+        default="rds",
+        help="Path to rds directory (default: rds)",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=".pi-rsg/analysis",
-        help="Output directory for archives (default: .pi-rsg/analysis)",
+        default="rds/archive",
+        help="Output directory for archives (default: rds/archive)",
     )
     return parser.parse_args()
 
@@ -128,12 +128,12 @@ def list_artifacts(target_dir: str) -> dict[str, list[str]]:
         "final": [],
     }
 
-    # JSON files in .pi-rsg/
+    # JSON files in rds/
     for f in sorted(target.glob("*.json")):
         if f.is_file():
             artifacts["json_files"].append(f.name)
 
-    # MD files in .pi-rsg/
+    # MD files in rds/
     for f in sorted(target.glob("*.md")):
         if f.is_file():
             artifacts["md_files"].append(f.name)
@@ -162,7 +162,7 @@ def archive_session(
     dry_run: bool = False,
 ) -> dict[str, int]:
     """
-    Archive session artifacts and clean .pi-rsg/.
+    Archive session artifacts and clean rds.
 
     Returns a dict with counts: {archived, cleaned, kept}
     """
@@ -234,7 +234,7 @@ def archive_session(
         with open(session_dir / "metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    # --- Clean .pi-rsg/ (remove drafts, state, questions, coverage reports) ---
+    # --- Clean rds/ (remove drafts, state, questions, coverage reports) ---
     files_to_clean = [
         "state.json",
         "questions.json",
@@ -295,7 +295,7 @@ def archive_session(
                     counts["cleaned"] += 1
                 # If directory contains non-.md files (e.g. scripts/), leave it alone
 
-    # --- Keep these files in .pi-rsg/ for reference ---
+    # --- Keep these files in rds/ for reference ---
     kept_files = [
         "goal.json",
         "recon-report.md",
@@ -352,7 +352,7 @@ def main() -> None:
     if args.dry_run:
         print(f"\n[DRY RUN] Would archive to: {output_dir}/{session_name}/")
         print(f"Would clean: state.json, questions.json, coverage-report.*, drafts/*")
-        print(f"Would keep in .pi-rsg/: goal.json, recon-report.md, inventory.json, wbs.json, source-map.json")
+        print(f"Would keep in rds/: goal.json, recon-report.md, inventory.json, wbs.json, source-map.json")
         return
 
     # Archive
@@ -360,8 +360,8 @@ def main() -> None:
 
     print(f"\nDone!")
     print(f"  Archived: {counts['archived']} files → {output_dir}/{session_name}/")
-    print(f"  Cleaned:  {counts['cleaned']} files from .pi-rsg/")
-    print(f"  Kept:     {counts['kept']} files in .pi-rsg/ (reference)")
+    print(f"  Cleaned:  {counts['cleaned']} files from rds/")
+    print(f"  Kept:     {counts['kept']} files in rds/ (reference)")
     print(f"\nSession archived at: {output_dir}/{session_name}/")
 
 

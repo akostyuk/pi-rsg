@@ -17,7 +17,7 @@ You receive from the main agent:
 
 - The chapter number and title (e.g. `Chapter 5: Data Model`)
 - The assigned `inventory_ids` (e.g. `INV-012, INV-013, ...`)
-- The draft output path (e.g. `.pi-rsg/drafts/05-data-model.md`)
+- The draft output path (e.g. `rds/drafts/05-data-model.md`)
 
 You investigate deeply in an isolated context and produce a draft that satisfies the quality gates.
 
@@ -159,7 +159,7 @@ The main agent reads this and appends the questions to `questions.json`.
 Your `Task` tool return-value text MUST include the following:
 
 ```
-Chapter NN written to .pi-rsg/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
+Chapter NN written to rds/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
 
 Key findings:
 - ...

@@ -183,11 +183,11 @@ When a question spans multiple categories, choose the dominant one and add the o
 ## Adding custom categories
 
 ### v1 support range
-The initial release does not support adding custom categories through a UI. Users can add them by editing `.pi-rsg/questions.json` manually.
+The initial release does not support adding custom categories through a UI. Users can add them by editing `rds/questions.json` manually.
 
 ### Manual procedure
 
-1. Create `.pi-rsg/custom-categories.json`:
+1. Create `rds/custom-categories.json`:
 
    ```json
    {

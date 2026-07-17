@@ -4,7 +4,7 @@ pi-rsg build-trace.py
 
 Extracts every `[REF: path:start-end]` written in drafts/*.md (or
 final/*.md), matches them against the source units in
-`.pi-rsg/source-map.json`, and produces `.pi-rsg/trace.json`.
+`rds/source-map.json`, and produces `rds/trace.json`.
 
 This produces in one pass:
 - Spec → source citations (the REF the agent wrote, recorded verbatim)
@@ -12,9 +12,9 @@ This produces in one pass:
 - covered / excluded / uncovered aggregation for MECE verification
 
 Usage:
-    python build-trace.py --pi-rsg-dir .pi-rsg [--target-dir-for-required final]
+    python build-trace.py --pi-rsg-dir rds [--target-dir-for-required final]
 
-Output schema (.pi-rsg/trace.json):
+Output schema (rds/trace.json):
     {
       "schema_version": "0.2.0",
       "generated_at": "<ISO>",
@@ -38,7 +38,7 @@ Output schema (.pi-rsg/trace.json):
       "uncovered_units": ["SRC-NNNN", ...]
     }
 
-Reads `.pi-rsg/exclusions.yaml` to honour explicit exclusions. The YAML
+Reads `rds/exclusions.yaml` to honour explicit exclusions. The YAML
 file is optional.
 """
 
@@ -186,8 +186,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="pi-rsg trace builder")
     parser.add_argument(
         "--pi-rsg-dir",
-        default=".pi-rsg",
-        help="Path to .pi-rsg/ directory",
+        default="rds",
+        help="Path to rds/ directory",
     )
     parser.add_argument(
         "--target-dir-for-required",

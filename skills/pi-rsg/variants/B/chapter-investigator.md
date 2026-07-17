@@ -17,7 +17,7 @@ You receive from the main agent:
 
 - The chapter number and title (e.g. `Chapter 5: Data Model`)
 - The assigned `inventory_ids` (e.g. `INV-012, INV-013, ...`)
-- The draft output path (e.g. `.pi-rsg/drafts/05-data-model.md`)
+- The draft output path (e.g. `rds/drafts/05-data-model.md`)
 
 You investigate deeply in an isolated context and produce a draft that satisfies the quality gates.
 
@@ -25,7 +25,7 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 > and a short summary**. Pasting the full chapter body into the return
 > bloats the main agent's conversation context and will trigger
 > `context_length_exceeded` within a handful of chapters. Always save the
-> body via the Write tool into `.pi-rsg/drafts/NN-slug.md`; the return value
+> body via the Write tool into `rds/drafts/NN-slug.md`; the return value
 > carries only the path + a 5-line summary + a question summary. Persist
 > the detailed questions inside the trailing `<!-- DETAIL_QUESTIONS -->`
 > HTML comment in the same file so the main agent can re-read them on
@@ -147,7 +147,7 @@ List questions raised while writing the chapter as a **full list inside the trai
 Your `Task` tool return-value text MUST follow the format below. **Pasting the chapter body is strictly forbidden** — the body is already saved to a file, and the main agent reads it from there when needed.
 
 ```
-Chapter NN saved: .pi-rsg/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
+Chapter NN saved: rds/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
 
 Key findings (up to 5 bullets):
 - ...
@@ -160,12 +160,12 @@ Detail questions raised (top 5; full list lives in the <!-- DETAIL_QUESTIONS -->
 - 4. ...
 - 5. ...
 
-Manifest line to append (the main agent appends this to `.pi-rsg/state/manifest.md`):
-| NN | slug | .pi-rsg/drafts/NN-slug.md | INV-xxx,INV-yyy | XXX lines | short key-topic phrase |
+Manifest line to append (the main agent appends this to `rds/state/manifest.md`):
+| NN | slug | rds/drafts/NN-slug.md | INV-xxx,INV-yyy | XXX lines | short key-topic phrase |
 ```
 
 The main agent reads only these 4 blocks and:
 1. surfaces "Key findings" in the conversation,
 2. appends the top 5 questions to `questions.json`,
-3. appends the manifest line to `.pi-rsg/state/manifest.md`,
+3. appends the manifest line to `rds/state/manifest.md`,
 4. opens `drafts/NN-slug.md` via the Read tool only when needed.

@@ -11,26 +11,26 @@ pi-rsg is a skill for **reverse engineering** specifications from a codebase. It
 # (via pi interface — select the pi-rsg skill)
 
 # 2. Or run scripts directly:
-python skills/pi-rsg/scripts/source-map.py --target ./src --output .pi-rsg/source-map.json
-python skills/pi-rsg/scripts/coverage-check.py --target-dir .pi-rsg/final
+python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/source-map.json
+python skills/pi-rsg/scripts/coverage-check.py --target-dir rds/final
 ```
 
 ## Architecture (6 phases)
 
 | Phase | What it does | Output |
 |-------|-------------|--------|
-| **0** | Setup & Goal — define objectives | `.pi-rsg/goal.json` |
+| **0** | Setup & Goal — define objectives | `rds/goal.json` |
 | **1** | Reconnaissance — codebase overview | `recon-report.md` |
 | **2** | Plan & WBS — inventory + decomposition | `inventory.json`, `wbs.json` |
 | **3** | Investigate — chapter investigation | `drafts/*.md` |
 | **4** | Verify — quality check | `coverage-report.json` |
 | **5** | Refine — clarification via questions | `questions.json` |
-| **6** | Deliver — final specification | `.pi-rsg/final/*.md` |
+| **6** | Deliver — final specification | `rds/final/*.md` |
 
 ## Key files
 
 ```
-.pi-rsg/
+rds/
 ├── goal.json           # session objectives (Phase 0)
 ├── state.json          # progress (pause/resume safe)
 ├── inventory.json      # code units inventory
@@ -49,14 +49,14 @@ python skills/pi-rsg/scripts/coverage-check.py --target-dir .pi-rsg/final
 ## Useful commands
 
 ```bash
-# Archive session and clean .pi-rsg/ for a new run
+# Archive session and clean rds/ for a new run
 python skills/pi-rsg/scripts/archive-session.py
 
 # Check final specification quality
-python skills/pi-rsg/scripts/coverage-check.py --target-dir .pi-rsg/final
+python skills/pi-rsg/scripts/coverage-check.py --target-dir rds/final
 
 # Generate source map
-python skills/pi-rsg/scripts/source-map.py --target ./src --output .pi-rsg/source-map.json
+python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/source-map.json
 ```
 
 ## Important rules
@@ -80,7 +80,7 @@ python skills/pi-rsg/scripts/source-map.py --target ./src --output .pi-rsg/sourc
 |--------|---------|
 | `source-map.py` | Source map (tree-sitter, 9 languages) |
 | `coverage-check.py` | Quality check (13 checks, including Mermaid syntax) |
-| `archive-session.py` | Session packaging + `.pi-rsg/` cleanup |
+| `archive-session.py` | Session packaging + `rds/` cleanup |
 | `build-trace.py` | Resolve `[REF:]` into `trace.json` |
 | `build-traceability.py` | Generate `traceability.md` from `trace.json` |
 

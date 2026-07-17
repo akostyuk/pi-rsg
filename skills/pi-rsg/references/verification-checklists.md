@@ -156,7 +156,7 @@ At the end of Phase 4, report to the user in the following format.
 
 ## Customising the checklist
 
-When the user wants to add their own checks, create `.pi-rsg/custom-checklists.md` and append items there. In Phase 4, Claude runs the custom checks in addition to the standard ones.
+When the user wants to add their own checks, create `rds/custom-checklists.md` and append items there. In Phase 4, Claude runs the custom checks in addition to the standard ones.
 
 Format custom checks like this:
 

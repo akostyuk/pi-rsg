@@ -510,7 +510,7 @@ A future version may split this into `references/inventory-units-{custom}.md`-st
 
 ## Instruction summary for Claude during extraction
 
-1. **First, run `python -m scripts.source_map_v2 --target <root>`**. This auto-extracts role-typed source units (SRC-NNNN) with tree-sitter-based language awareness and saves them to `.pi-rsg/source-map.json`. Falls back to file-level units with a loud warning if tree-sitter is not installed.
+1. **First, run `python -m scripts.source_map_v2 --target <root>`**. This auto-extracts role-typed source units (SRC-NNNN) with tree-sitter-based language awareness and saves them to `rds/source-map.json`. Falls back to file-level units with a loud warning if tree-sitter is not installed.
 2. Identify the target codebase's primary language(s) from `recon-report.md`.
 3. Consult the matching section and plan an extraction strategy.
 4. **Group `source-map.json` units into conceptual units**. Many-to-one (multiple SRC → 1 INV) is acceptable, subject to the granularity rules below.

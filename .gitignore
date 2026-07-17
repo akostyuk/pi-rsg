@@ -32,7 +32,7 @@ lerna-debug.log*
 *~
 
 # pi-rsg runtime artifacts (generated during skill execution)
-.pi-rsg/
+rds/
 
 # Python
 __pycache__/

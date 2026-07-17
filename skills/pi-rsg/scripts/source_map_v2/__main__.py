@@ -1,7 +1,7 @@
 """CLI entrypoint for source-map v2.
 
 Usage:
-    python -m source_map_v2 --target ./src --output .pi-rsg/source-map.json
+    python -m source_map_v2 --target ./src --output rds/source-map.json
 
 Mirrors the v1 source-map.py flags so it can be swapped in. Warnings about
 unsupported languages are printed to stderr (loud, never silent).

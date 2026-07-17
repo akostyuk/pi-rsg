@@ -22,7 +22,7 @@ Corresponding real sources (Read these):
 - app/models/role.rb
 - db/schema.rb (relevant portions)
 
-Draft output path: .pi-rsg/drafts/05-data-model.md
+Draft output path: rds/drafts/05-data-model.md
 
 Quality bar:
 - Body ≥ 200 lines
@@ -53,19 +53,19 @@ The sub-agent returns 4 blocks; process them in order:
 
 1. **Key findings** — surface in the conversation to share the chapter's summary.
 2. **Detail questions raised** — append the top 5 entries to `questions.json`.
-3. **Manifest line** — **append** one line to `.pi-rsg/state/manifest.md` (see G-3).
+3. **Manifest line** — **append** one line to `rds/state/manifest.md` (see G-3).
 4. Then **proceed to the next chapter without reading the body**. Open `drafts/NN-slug.md` with the Read tool only when Phase 4 verification or cross-chapter consistency requires it.
 
 **G-3. Manifest update:**
 
-After every per-chapter `subagent` completes, append a row to `.pi-rsg/state/manifest.md`. If the file does not exist, create it with the Write tool and the header:
+After every per-chapter `subagent` completes, append a row to `rds/state/manifest.md`. If the file does not exist, create it with the Write tool and the header:
 
 ```markdown
 # pi-rsg Drafts Manifest
 
 | NN | slug | path | inventory_ids | lines | key topic |
 |----|------|------|----------------|------|----------------|
-| 05 | data-model | .pi-rsg/drafts/05-data-model.md | INV-012,INV-013,INV-014,INV-015 | 234 | Project / Issue / User / Role relationships |
+| 05 | data-model | rds/drafts/05-data-model.md | INV-012,INV-013,INV-014,INV-015 | 234 | Project / Issue / User / Role relationships |
 ```
 
 This manifest is the **single entry point** when the main agent needs a chapter-level overview in Phase 4 / 5 / 6. Because the chapter body never enters the conversation history, the main agent first reads the manifest and only then opens the specific chapter via the Read tool.
