@@ -1,98 +1,98 @@
 # pi-rsg — Quick Start
 
-## Что это
+## What is this
 
-pi-rsg — скилл для **обратного инжиниринга** спецификаций из кодовой базы. Работает в направлении **code → spec**: берёт существующий проект и генерирует документацию для поддержки/разработки.
+pi-rsg is a skill for **reverse engineering** specifications from a codebase. It operates in the **code → spec** direction: takes an existing project and generates documentation for maintenance/development.
 
-## Быстрый старт
+## Quick Start
 
 ```bash
-# 1. Запусти скилл в целевом проекте
-# (через pi-интерфейс — выбери скилл pi-rsg)
+# 1. Run the skill in the target project
+# (via pi interface — select the pi-rsg skill)
 
-# 2. Или запусти скрипты напрямую:
+# 2. Or run scripts directly:
 python skills/pi-rsg/scripts/source-map.py --target ./src --output .pi-rsg/source-map.json
 python skills/pi-rsg/scripts/coverage-check.py --target-dir .pi-rsg/final
 ```
 
-## Архитектура (6 фаз)
+## Architecture (6 phases)
 
-| Фаза | Что делает | Результат |
-|------|-----------|-----------|
-| **0** | Setup & Goal — определение целей | `.pi-rsg/goal.json` |
-| **1** | Reconnaissance — обзор кодовой базы | `recon-report.md` |
-| **2** | Plan & WBS — инвентарь + декомпозиция | `inventory.json`, `wbs.json` |
-| **3** | Investigate — исследование глав | `drafts/*.md` |
-| **4** | Verify — проверка качества | `coverage-report.json` |
-| **5** | Refine — уточнение через вопросы | `questions.json` |
-| **6** | Deliver — финальная спецификация | `.pi-rsg/final/*.md` |
+| Phase | What it does | Output |
+|-------|-------------|--------|
+| **0** | Setup & Goal — define objectives | `.pi-rsg/goal.json` |
+| **1** | Reconnaissance — codebase overview | `recon-report.md` |
+| **2** | Plan & WBS — inventory + decomposition | `inventory.json`, `wbs.json` |
+| **3** | Investigate — chapter investigation | `drafts/*.md` |
+| **4** | Verify — quality check | `coverage-report.json` |
+| **5** | Refine — clarification via questions | `questions.json` |
+| **6** | Deliver — final specification | `.pi-rsg/final/*.md` |
 
-## Ключевые файлы
+## Key files
 
 ```
 .pi-rsg/
-├── goal.json           # цели сессии (Phase 0)
-├── state.json          # прогресс (pause/resume safe)
-├── inventory.json      # инвентарь единиц кода
-├── wbs.json            # декомпозиция работ
-├── questions.json      # банк вопросов
-├── source-map.json     # карта исходников (tree-sitter)
-├── drafts/             # черновики глав
+├── goal.json           # session objectives (Phase 0)
+├── state.json          # progress (pause/resume safe)
+├── inventory.json      # code units inventory
+├── wbs.json            # work breakdown structure
+├── questions.json      # question bank
+├── source-map.json     # source map (tree-sitter)
+├── drafts/             # chapter drafts
 │   ├── 01-overview.md
 │   ├── 02-architecture.md
 │   └── ...
-└── final/              # финальная спецификация
+└── final/              # final specification
     ├── 01-overview.md
     └── ...
 ```
 
-## Полезные команды
+## Useful commands
 
 ```bash
-# Упаковать сессию и очистить .pi-rsg/ для нового запуска
+# Archive session and clean .pi-rsg/ for a new run
 python skills/pi-rsg/scripts/archive-session.py
 
-# Проверить качество финальной спецификации
+# Check final specification quality
 python skills/pi-rsg/scripts/coverage-check.py --target-dir .pi-rsg/final
 
-# Получить карту исходников
+# Generate source map
 python skills/pi-rsg/scripts/source-map.py --target ./src --output .pi-rsg/source-map.json
 ```
 
-## Важные правила
+## Important rules
 
-- **Mermaid только** — ASCII-диаграммы запрещены, все диаграммы в ` ```mermaid ` блоках
-- **`[REF: path:L-L]`** — каждая утверждение должно иметь ссылку на исходный код
-- **Sources Read** — в начале каждой главы список прочитанных файлов (≥5)
-- **Self-validation** — агент проверяет Mermaid-синтаксис перед сохранением
+- **Mermaid only** — ASCII diagrams are forbidden, all diagrams in ` ```mermaid ` blocks
+- **`[REF: path:L-L]`** — every claim must have a reference to source code
+- **Sources Read** — at the beginning of each chapter, list of read files (≥5)
+- **Self-validation** — agent validates Mermaid syntax before saving
 
-## Режимы глубины (depth_mode)
+## Depth modes (depth_mode)
 
-| Режим | Описание |
-|-------|----------|
-| `comprehensive` | Полная спецификация: ≥200 строк, ≥10 REFs, ≥1 Mermaid на главу |
-| `outline` (default) | Обзорные таблицы + Mermaid + список кандидатов для углубления |
-| `interactive` | Только overview, детали по запросу пользователя |
+| Mode | Description |
+|------|-------------|
+| `comprehensive` | Full specification: ≥200 lines, ≥10 REFs, ≥1 Mermaid per chapter |
+| `outline` (default) | Overview tables + Mermaid + list of candidates for deepening |
+| `interactive` | Overview only, details on user request |
 
-## Скрипты
+## Scripts
 
-| Скрипт | Назначение |
-|--------|-----------|
-| `source-map.py` | Карта исходников (tree-sitter, 9 языков) |
-| `coverage-check.py` | Проверка качества (13 проверок, включая Mermaid-синтаксис) |
-| `archive-session.py` | Упаковка сессии + очистка `.pi-rsg/` |
-| `build-trace.py` | Резолюция `[REF:]` в `trace.json` |
-| `build-traceability.py` | Генерация `traceability.md` из `trace.json` |
+| Script | Purpose |
+|--------|---------|
+| `source-map.py` | Source map (tree-sitter, 9 languages) |
+| `coverage-check.py` | Quality check (13 checks, including Mermaid syntax) |
+| `archive-session.py` | Session packaging + `.pi-rsg/` cleanup |
+| `build-trace.py` | Resolve `[REF:]` into `trace.json` |
+| `build-traceability.py` | Generate `traceability.md` from `trace.json` |
 
-## Режимы работы (Phase 3)
+## Execution modes (Phase 3)
 
-| Режим | Описание |
-|-------|----------|
-| **Mode A** (default) | Основной агент пишет главы inline |
-| **Mode B** (opt-in) | Каждая глава → изолированный sub-agent (`run_in_background: true`) |
+| Mode | Description |
+|------|-------------|
+| **Mode A** (default) | Main agent writes chapters inline |
+| **Mode B** (opt-in) | Each chapter → isolated sub-agent (`run_in_background: true`) |
 
-Mode B активируется через `goal.json.context_optimization_mode = "B"`.
+Mode B is activated via `goal.json.context_optimization_mode = "B"`.
 
-## Зависимости скриптов
+## Script dependencies
 
-Все скрипты используют **только стандартную библиотеку Python 3** — никаких `pip install` не требуется.
+All scripts use **only the standard Python 3 library** — no `pip install` required.
