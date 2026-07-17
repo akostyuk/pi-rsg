@@ -8,7 +8,7 @@ description: |
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, subagent, AskUserQuestion, WebFetch, WebSearch
 ---
 
-# pi-rsg (Claude Code Reverse Spec Generator)
+# pi-rsg (Pi Reverse Spec Generator)
 
 > **Quick reference**: see `HELP.md` for a concise overview, common commands, and troubleshooting.
 
@@ -39,13 +39,13 @@ This skill operates in the "code → spec" direction; it is the symmetric counte
 This skill operates under the following 11 principles. They are mutually reinforcing; if any one breaks, the reliability of the whole skill collapses.
 
 1. **Goal-driven**: Phase 0 fixes the goal through a 5-question choice-based dialogue and persists it to `rds/goal.json`. All subsequent phases reference this goal.
-2. **Hybrid template decision**: Supports three template sources — the user's own template, a Claude-recommended template (derived from reconnaissance), or a user-adjusted version of the recommendation.
+2. **Hybrid template decision**: Supports three template sources — the user's own template, a the agent-recommended template (derived from reconnaissance), or a user-adjusted version of the recommendation.
 3. **Reference-based inventory unit selection**: `references/inventory-units.md` lists typical units per language/framework; the relevant patterns for the target codebase are chosen from there.
 4. **Gap-prevention is anchored on inventory-based verification**: Enumerate every extractable unit from the code and mechanically check whether the spec covers each one.
 5. **Question Bank is populated at 3 moments**: end of reconnaissance (high-level questions), during sub-agent investigation (detail questions), and at verification (consistency questions). Classified into 7 standard categories.
 6. **Sub-agents decide dynamically based on question severity**: Critical → leave the section blocked. Important / nice-to-have → proceed with an inference, leaving a marker.
 7. **Question merge is automatic only for "obviously identical"**: "Similar but subtly different" questions are grouped and surfaced to the user for judgement.
-8. **The dialogue protocol is Claude-driven**: Choice-based questions are the default; free-form input is a fallback. AskUserQuestion-style choice UIs are exploited to the maximum.
+8. **The dialogue protocol is the agent-driven**: Choice-based questions are the default; free-form input is a fallback. AskUserQuestion-style choice UIs are exploited to the maximum.
 9. **Unanswerable questions are marked `abandoned`**: They are explicitly recorded in the final spec under "unresolved items", never hidden.
 10. **Dual-consumer handling is reduced to one in goal definition**: If multiple views are needed, restart instead of overloading a single spec.
 11. **Output language is chosen in Phase 0 (Русский / English) — Russian is the BASE language**: The very first dialogue is bilingual (Russian first, then English). The default selection is provided by the parent harness's initial prompt (the user's UI-language hint; falls back to `"ru"`). The answer is persisted to `rds/goal.json` as `output_language` (`"ru"` or `"en"`). All subsequent natural-language output — AskUserQuestion bodies and choices, progress messages, confirmation summaries, generated spec body and chapter titles, `questions.json` `body` / `answer`, Phase 4 verification reports, resume messages — uses that language. Internal identifiers and machine-readable elements — state keys (`current_phase` etc.), IDs (`Q-XXX` / `INV-XXX`), file names (ASCII slug), `[REF: file:lines]`, `[CONFIDENCE: HIGH|MED|LOW]`, `[ASK SME]`, `[ASSUMED: ...]`, `[BLOCKED: ...]` marker names, and `goal.json` enum values (`primary_reader: "maintenance_developer"` etc.) — stay English **regardless of `output_language`**. The literal `## Sources Read` heading also stays English (so `coverage-check.py` pattern-matches it). The entire skill bundle (this SKILL.md, `agents/`, `variants/`, `templates/*.md`, `references/*.md`, and `scripts/*.py` docstrings / messages) is English-base. When `output_language == "ru"`, the agent dynamically renders deliverable text (chapter body, AskUserQuestion bodies, progress messages, etc.) in Russian while preserving every machine-readable element verbatim.
@@ -271,10 +271,10 @@ Get a rough mental model of the codebase via a shallow reconnaissance, then pick
    - Batch processing system spec (`templates/batch-system.md`)
    - API service spec (`templates/api-service.md`)
    - Library/SDK spec (`templates/library-sdk.md`)
-   - Use whichever Claude recommends from reconnaissance
+   - Use whichever the agent recommends from reconnaissance
 
 3. **Adjust the chosen template**
-   - If the user accepts Claude's recommendation, display the chapter outline and ask "Are there chapters to add, remove, or rename?".
+   - If the user accepts the agent's recommendation, display the chapter outline and ask "Are there chapters to add, remove, or rename?".
    - Reflect any additions/removals.
 
 4. **Register high-level questions**
@@ -303,7 +303,7 @@ Get a rough mental model of the codebase via a shallow reconnaissance, then pick
 ### Phase-specific cautions
 - Reconnaissance follows the principle "shallow but wide". Detailed logic understanding is deferred to Phase 3.
 - Without noise exclusion (`node_modules`, `vendor`, `.git`, etc.) the output explodes.
-- If the user brings their own template, you may point out "Claude's recommendation differs", but the decision is the user's.
+- If the user brings their own template, you may point out "the agent's recommendation differs", but the decision is the user's.
 
 ---
 
@@ -315,7 +315,7 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
 ### Procedure
 
 1. **Apply the chapter file naming convention and generate the skeleton**
-   - Every chapter file falls into one of three kinds; free naming by Claude is forbidden.
+   - Every chapter file falls into one of three kinds; free naming by the agent is forbidden.
      - **Standard chapter** (`kind: "standard"`): `{NN}-{slug}.md`
        - `NN`: zero-padded two-digit chapter number (`00`-`99`)
        - `slug`: ASCII lowercase + digits + hyphens only (e.g. `01-overview.md`, `04-oauth-oidc.md`)
@@ -530,7 +530,7 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
    - Update `state.json` and proceed to Phase 3.
 
 ### Phase-specific cautions
-- Inventory extraction scripts are generated by Claude on the fly. Pre-built generic scripts cannot keep up with language-specific details.
+- Inventory extraction scripts are generated by the agent on the fly. Pre-built generic scripts cannot keep up with language-specific details.
 - WBS granularity directly drives sub-agent precision. When in doubt, split finer.
 - Skipping the user review causes large rework in Phase 3.
 - **Strictly observe the chapter file naming convention**. Free-form names like `chapter2_architecture.md` or `第3章_認証.md` are NOT allowed. Violations are flagged by `scripts/coverage-check.py`.
@@ -1416,7 +1416,7 @@ rds/
 ## Key implementation principles
 
 ### Honesty above polish
-A polished, finished-looking spec is less valuable than an honest spec whose gaps are visible. Clearly separate what Claude inferred from what the code unambiguously says, and surface `abandoned` questions as "unresolved items".
+A polished, finished-looking spec is less valuable than an honest spec whose gaps are visible. Clearly separate what the agent inferred from what the code unambiguously says, and surface `abandoned` questions as "unresolved items".
 
 ### Guarantee traceability
 Every statement must be traceable to a specific source-code location with a line range. This inherits the KDM (Knowledge Discovery Metamodel) "Source package" idea and is a hard requirement for a spec that maintenance developers can audit later.

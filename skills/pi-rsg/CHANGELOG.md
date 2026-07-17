@@ -36,4 +36,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-> **Note:** This project is a fork of [cc-rsg](https://github.com/earendil-works/cc-rsg), adapted for the pi coding agent. The original cc-rsg project used a different runtime (Claude Code). All changes from the initial fork onward are specific to the pi-rsg port.
+> **Note:** This project is a fork of [cc-rsg](https://github.com/earendil-works/cc-rsg), adapted for the pi coding agent runtime. All changes from the initial fork onward are specific to the pi-rsg port.

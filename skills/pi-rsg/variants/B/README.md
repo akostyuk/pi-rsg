@@ -44,7 +44,7 @@ a reference variant.
 - The subagent tool dispatches each sub-agent in an isolated context. Token
   usage is 5–10× higher than mode A because the prompt cache is not
   shared across sub-agents.
-- Hosts integrating pi-rsg into a non-Claude-Code runtime should ensure
+- Hosts integrating pi-rsg into a non-pi runtime should ensure
   their equivalent of the subagent tool genuinely produces isolated contexts;
   in-process execution defeats the purpose of mode B.
 - When chapter delegation is not desired or the subagent tool is unavailable,

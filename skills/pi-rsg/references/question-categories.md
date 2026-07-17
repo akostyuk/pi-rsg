@@ -153,7 +153,7 @@ Questions about security requirements, regulatory compliance, and conformance to
 
 ---
 
-## Category-selection logic (instructions to Claude)
+## Category-selection logic (instructions to the agent)
 
 When a sub-agent raises a question, use this flow to choose the category:
 
@@ -204,7 +204,7 @@ The initial release does not support adding custom categories through a UI. User
 
 2. Set the `category` field of relevant entries in `questions.json` to the new `id`.
 
-3. During Phase 5 dialogue, Claude treats custom categories on equal footing with the 7 standard categories.
+3. During Phase 5 dialogue, the agent treats custom categories on equal footing with the 7 standard categories.
 
 ### Future extensions
 
