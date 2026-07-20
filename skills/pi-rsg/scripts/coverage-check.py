@@ -735,7 +735,7 @@ def build_report(
         )
 
     # Mermaid syntax validation (all depth modes — malformed diagrams are always bad)
-    evaluate_mermaid_syntax(standard_chapter_metrics, drafts)
+    evaluate_mermaid_syntax(standard_chapter_metrics, chapters)
 
     # inventory min auto
     if min_inventory == "auto":

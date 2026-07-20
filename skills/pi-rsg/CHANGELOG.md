@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `coverage-check.py`: fix `NameError: name 'drafts' is not defined` in `build_report()` — the Mermaid validation call referenced a non-existent variable; renamed to `chapters` (the actual dict of scanned chapter files).
+
 ### Changed
 - **Artifact directory renamed**: `.pi-rsg/` → `rds/` (Reverse-Designed Specs). All scripts, templates, agent prompts, and documentation updated. `rds/` is no longer a hidden directory — visible in project root alongside `.gitignore`. Archive path: `rds/archive/<session-name>/`.
 
