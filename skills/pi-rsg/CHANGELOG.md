@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 6 step 2 — Clean up draft artifacts**: after copying chapters to `rds/final/`, the entire `drafts/` directory is removed. Prevents stale intermediate files from contaminating subsequent runs.
+
 ### Fixed
 - `coverage-check.py`: fix `NameError: name 'drafts' is not defined` in `build_report()` — the Mermaid validation call referenced a non-existent variable; renamed to `chapters` (the actual dict of scanned chapter files).
 
