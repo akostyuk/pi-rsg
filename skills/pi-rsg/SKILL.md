@@ -1141,18 +1141,16 @@ Output the final spec as Markdown under `rds/analysis/<session_name>/final/`.
 
 File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d)-[a-z0-9-]+\.md$`; reserved files: `00-metadata.md` / `99-unresolved.md` / `traceability.md`). Phase 6 does not create new names; it fills in the skeleton files generated in Phase 2.
 
-1. **Merge chapter drafts**
-   - Copy every chapter in `wbs.json.chapters[]` — standard, reserved, AND user_custom — from `drafts/` to `rds/analysis/<session_name>/final/` in the template-defined order (user-custom chapters typically appear at the end unless the user's intent suggests otherwise).
+1. **Move chapter drafts to final**
+   - **Execute**: `mv rds/analysis/<session_name>/drafts/*.md rds/analysis/<session_name>/final/`
+   - Then: `rmdir rds/analysis/<session_name>/drafts` (or `rm -rf` if directory is non-empty).
+   - **Verify** that `ls rds/analysis/<session_name>/drafts` returns "No such file or directory". If `drafts/` still exists, the move was incomplete — **retry** until confirmed clean.
    - Do NOT change the file names (use the names finalised in Phase 2).
    - Do NOT silently skip a chapter just because its draft body is short — that is a Phase 3 / Phase 4 failure and must be surfaced, not papered over.
    - Strip the meta comment at the top of each chapter file.
+   - **Do NOT copy** — always **move**. Copying without deleting stale drafts is a contract violation.
 
-2. **Clean up draft artifacts**
-   - After all chapters have been successfully copied to `rds/analysis/<session_name>/final/`, **remove the entire `drafts/` directory** (`rm -rf rds/analysis/<session_name>/drafts`).
-   - This is mandatory: `drafts/` contains intermediate work products that are now superseded by the final deliverable. Leaving stale drafts causes confusion on subsequent runs (the agent may pick up old files from `scan_chapter_files()`).
-   - If the directory does not exist (e.g. a resumed session where it was already cleaned), this step is a no-op.
-
-3. **Generate the traceability table (fill in `traceability.md`)**
+2. **Generate the traceability table (fill in `traceability.md`)**
    - Phase 2 created `traceability.md` as an empty file; write its body now.
    - Generate a table mapping each chapter/section to the source code it references.
    - Format example:
@@ -1267,8 +1265,8 @@ Once the deep-dive target is fixed:
 When the user sends a completion word ("end", "complete", "OK, done", etc.):
 
 1. Update `state.json` with `phase_6_5_completed_at`.
-2. Re-generate `final/` (consolidating the deep-dive chapters from `drafts/deep/`).
-3. **Clean up**: remove the entire `drafts/` directory (`rm -rf rds/analysis/<session_name>/drafts`) — deep-dive chapters are now in `final/`, stale drafts must not remain.
+2. **Move** deep-dive chapters from `drafts/deep/` into `final/`: `mv rds/analysis/<session_name>/drafts/deep/*.md rds/analysis/<session_name>/final/` (or `mv rds/analysis/<session_name>/drafts rds/analysis/<session_name>/final/deep` if consolidating subdirectory).
+3. **Remove** `drafts/` entirely: `rmdir rds/analysis/<session_name>/drafts` (or `rm -rf` if non-empty). **Verify** it is gone.
 4. Update final/traceability.md to the final version.
 5. Close the env with a thank-you message.
 
