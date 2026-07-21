@@ -24,9 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - **`rds/analysis/<session_name>/skill/` marker directory**: Phase 0 Step 2 no longer creates an empty `skill/` subdirectory. This directory was a dead marker — never read or written by any script, agent instruction, or output artifact. Leftover from a pre-pi staging design.
+- **`postinstall.js`**: no longer needed. Mermaid validation patch is now applied at runtime by `validate-mermaid.mjs` (see below), making a postinstall script unnecessary — especially since `pi install` for local packages does not execute npm lifecycle scripts.
 
 ### Added
 - **Regex-based Python extractor** (`python_regex_ext.py`): zero external dependencies — works without `tree-sitter-python`. Detects functions, classes, FastAPI/Flask endpoints, Pydantic schemas, Django models, Celery tasks. Falls back to file-level units only when no Python extractor is available.
+- **`validate-mermaid` (bash wrapper)**: resolves `mermaid` and `dompurify` from `pi-rsg/node_modules` via `NODE_PATH`, enabling validation from any directory (not just within `pi-rsg`). Auto-detects `pi-rsg` by searching for `package.json` with `name: "pi-rsg"` up the directory tree. Supports `--file`, `--dir`, and `--stdin` modes.
+- **`validate-mermaid.mjs` (Node.js)**: extracts all ` ```mermaid ` blocks from Markdown files, validates each using `mermaidAPI.parse()`, and returns a structured JSON report with per-block validity and error details. Patches `dompurify` at startup to work in Node.js (no browser). Uses mermaid v10 (not v11) to avoid DOM requirements.
+- **Package dependencies**: `mermaid@^10.9.6`, `dompurify@^3.4.12`, `jsdom@^29.1.1` — required by the Mermaid validation wrapper.
+
+### Changed
+- **`coverage-check.py`**: `evaluate_mermaid_syntax()` now calls the bash `validate-mermaid` wrapper via `subprocess.run()` instead of invoking Node.js directly. The bash wrapper handles `NODE_PATH` resolution.
+- **`SKILL.md`**: Mermaid self-validation section (item 7) updated to instruct the agent to use the bash wrapper (`skills/pi-rsg/scripts/validate-mermaid`) instead of invoking Node.js directly.
 
 ### Fixed
 - **Phase 6 drafts cleanup: copy → delete replaced with atomic `mv`** (commit `4ac1c5e` added cleanup instructions but agents consistently skipped the deletion step, leaving stale files in `drafts/` alongside `final/`). Phase 6 Step 1 now uses `mv` to **move** chapters from `drafts/` to `final/` in a single step, followed by verification that `drafts/` no longer exists. Deep-dive cleanup (Phase 6.5) updated to the same `mv` + verify pattern. Rationale: agents reliably execute copy but frequently omit the subsequent delete — a single atomic move eliminates the gap.

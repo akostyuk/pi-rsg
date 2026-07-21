@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# validate-mermaid — wrapper for pi-rsg Mermaid validation.
+#
+# Usage:
+#   validate-mermaid --pi-rsg-dir <path> --file <markdown-file>
+#   validate-mermaid --pi-rsg-dir <path> --dir <markdown-dir>
+#   validate-mermaid --pi-rsg-dir <path> --stdin
+#
+# If --pi-rsg-dir is omitted, searches up the directory tree for
+# a package.json with name "pi-rsg".
+#
+# Exit codes:
+#   0 — all Mermaid blocks valid (or none found)
+#   1 — validation errors
+#   2 — usage error
+
+set -euo pipefail
+
+PI_RSG_DIR=""
+shift_args=()
+
+# Parse --pi-rsg-dir (must come first)
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pi-rsg-dir|--pi-rsg-directory)
+      PI_RSG_DIR="$2"
+      shift 2
+      ;;
+    *)
+      shift_args+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$PI_RSG_DIR" ]]; then
+  # Auto-detect: search up the tree for package.json with name "pi-rsg"
+  SEARCH_DIR="$(pwd)"
+  while [[ "$SEARCH_DIR" != "/" ]]; do
+    if [[ -f "$SEARCH_DIR/package.json" ]]; then
+      NAME=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$SEARCH_DIR/package.json','utf8')).name)" 2>/dev/null || true)
+      if [[ "$NAME" == "pi-rsg" ]]; then
+        PI_RSG_DIR="$SEARCH_DIR"
+        break
+      fi
+    fi
+    SEARCH_DIR="$(dirname "$SEARCH_DIR")"
+  done
+fi
+
+if [[ -z "$PI_RSG_DIR" ]]; then
+  echo "Error: --pi-rsg-dir is required (or run from within a pi-rsg project)." >&2
+  echo "Usage: validate-mermaid --pi-rsg-dir <path> --file <file.md>" >&2
+  exit 2
+fi
+
+NODE_MODULES="$PI_RSG_DIR/node_modules"
+if [[ ! -d "$NODE_MODULES" ]]; then
+  echo "Error: node_modules not found at $NODE_MODULES" >&2
+  echo "Run 'npm install' in $PI_RSG_DIR first." >&2
+  exit 2
+fi
+
+# Run the actual Node.js script with NODE_PATH env var pointing to pi-rsg's node_modules
+exec env "NODE_PATH=$NODE_MODULES" \
+  node \
+  "$PI_RSG_DIR/skills/pi-rsg/scripts/validate-mermaid.mjs" \
+  "${shift_args[@]}"

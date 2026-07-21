@@ -28,10 +28,12 @@ Checks performed:
     quality gates) because their quality bar is the user's intent expressed
     in `free_text_notes`, not the source-code-spec-chapter gates. Only
     existence + body presence is enforced.
-13. **Mermaid syntax validation** (lightweight, no mermaid.js): every
-    ` ```mermaid ` block is checked for structural validity — unclosed fences,
-    invalid `state X --> Y:` anti-pattern, missing direction modifiers on
-    graph/flowchart, ER relationships without cardinality markers.
+13. **Mermaid syntax validation** (bash wrapper → Node.js): every ` ```mermaid ` block
+    is validated using `mermaid.parse()` via the `validate-mermaid` bash wrapper.
+    The wrapper resolves `mermaid` and `dompurify` from `pi-rsg/node_modules`
+    automatically (via `NODE_PATH`), extracts all Mermaid blocks from chapter files
+    and runs the authoritative structural parser. See `validate-mermaid` (bash)
+    and `validate-mermaid.mjs` (Node.js) for details.
 
 `--fail-on-uncovered` `--strict` `--output-format` remain for backward
 compatibility. Every quality check returns exit 1 on failure. All thresholds
@@ -63,7 +65,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -89,17 +93,9 @@ SOURCES_READ_ITEM_RE = re.compile(r"^\s*[-*]\s+`?([^`\n]+?)`?(?:\s*\([^)]*\))?\s
 # Keywords that make an INV count as "macro" (matched against the `type` field)
 MACRO_TYPE_KEYWORDS = ("group", "module", "domain", "category", "bundle", "section")
 
-# Common Mermaid syntax anti-patterns (lightweight validation without mermaid.js)
-MERMAID_INVALID_STATE_TRANSITION_RE = re.compile(
-    r"\bstate\s+\w+\s*-->"
-)  # "state A --> B:" is invalid; should be just "A --> B:"
-MERMAID_INVALID_NODE_DEF_RE = re.compile(
-    r"\bnode\s+\w+\s*-->"
-)  # "node A --> B:" is invalid
-MERMAID_MISSING_DIRECTION_RE = re.compile(
-    r"^\s*(graph|flowchart)\s*$", re.MULTILINE
-)  # "graph" or "flowchart" without TB/LR/RL/BT on the same line
-MERMAID_UNCLOSED_FENCE_RE = re.compile(r"^```mermaid\b", re.MULTILINE)
+# Path to the Mermaid validation wrapper (bash — resolves NODE_PATH)
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+_VALIDATE_MERMAID = _SCRIPTS_DIR / "validate-mermaid"
 
 
 # ----------------------------------------------------------------------------
@@ -352,143 +348,73 @@ def evaluate_chapter_gates(
 
 
 # ----------------------------------------------------------------------------
-# Mermaid syntax validation (lightweight, no mermaid.js dependency)
+# Mermaid syntax validation — Node.js wrapper (uses mermaid.parse())
 # ----------------------------------------------------------------------------
 
-def validate_mermaid_syntax(content: str) -> list[str]:
+def _validate_mermaid_file(file_path: str) -> list[str]:
     """
-    Extract all Mermaid fenced code blocks from `content` and run
-    lightweight structural checks. Returns a list of error strings;
-    empty list means the Mermaid blocks look structurally valid.
-
-    Checks performed:
-      1. Every ```mermaid fence has a matching closing ```
-      2. No `state X --> Y:` anti-pattern (invalid Mermaid; should be `X --> Y`)
-      3. No `node X --> Y:` anti-pattern
-      4. graph/flowchart declarations have a direction modifier (TB/LR/RL/BT)
-      5. ER diagrams: entity declarations use `||` or `}|o|` etc., not bare `-->`
-      6. Sequence diagrams: participants declared with `participant` / `actor`,
-         messages use `A->>B` or `A->B` syntax (not bare text lines that look
-         like transitions without arrow syntax)
+    Run the bash Mermaid validation wrapper on a single file.
+    The wrapper resolves `mermaid` and `dompurify` from pi-rsg/node_modules
+    automatically via NODE_PATH.
+    Returns a list of error strings; empty list means all blocks are valid.
     """
-    errors: list[str] = []
-
-    # Extract all Mermaid block bodies (between ```mermaid and closing ```)
-    fence_pattern = re.compile(r"^```mermaid\s*$", re.MULTILINE)
-    close_fence = re.compile(r"^```\s*$", re.MULTILINE)
-
-    matches = list(fence_pattern.finditer(content))
-    for i, match in enumerate(matches):
-        block_start = match.end()
-        # Find the closing fence after this opening
-        if i + 1 < len(matches):
-            block_end = matches[i + 1].start()
-        else:
-            block_end = len(content)
-
-        body = content[block_start:block_end].strip()
-        block_num = i + 1
-
-        # Check 1: unclosed fence (no closing ``` found)
-        if not close_fence.search(body):
-            errors.append(
-                f"Mermaid block #{block_num}: unclosed fence (no closing ``` found)"
-            )
-
-        # Check 2: `state X --> Y:` anti-pattern
-        if MERMAID_INVALID_STATE_TRANSITION_RE.search(body):
-            # Extract the offending line for context
-            for m in MERMAID_INVALID_STATE_TRANSITION_RE.finditer(body):
-                line_start = body.rfind("\n", 0, m.start()) + 1
-                line_end = body.find("\n", m.end())
-                if line_end == -1:
-                    line_end = len(body)
-                offending_line = body[line_start:line_end].strip()
-                errors.append(
-                    f"Mermaid block #{block_num}: invalid 'state X --> Y' syntax — "
-                    f"remove the leading 'state'. Offending: {offending_line!r}"
-                )
-
-        # Check 3: `node X --> Y:` anti-pattern
-        if MERMAID_INVALID_NODE_DEF_RE.search(body):
-            for m in MERMAID_INVALID_NODE_DEF_RE.finditer(body):
-                line_start = body.rfind("\n", 0, m.start()) + 1
-                line_end = body.find("\n", m.end())
-                if line_end == -1:
-                    line_end = len(body)
-                offending_line = body[line_start:line_end].strip()
-                errors.append(
-                    f"Mermaid block #{block_num}: invalid 'node X --> Y' syntax — "
-                    f"remove the leading 'node'. Offending: {offending_line!r}"
-                )
-
-        # Check 4: graph/flowchart without direction modifier
-        for decl_match in re.finditer(
-            r"^(graph|flowchart)\s*$", body, re.MULTILINE
-        ):
-            diagram_type = decl_match.group(1)
-            errors.append(
-                f"Mermaid block #{block_num}: {diagram_type} declaration missing "
-                f"direction modifier (TB/LR/RL/BT). Use e.g. '{diagram_type} LR'"
-            )
-
-        # Check 5: ER diagram bare `-->` between entity names (should use cardinality)
-        if re.search(r"^erDiagram\s*$", body, re.MULTILINE):
-            # In ER diagrams, relationships use cardinality: }|--||
-            # Bare "EntityA --> EntityB" without cardinality is suspicious
-            for line in body.split("\n"):
-                stripped = line.strip()
-                # Skip comments, empty lines, entity declarations
-                if (
-                    not stripped
-                    or stripped.startswith("//")
-                    or stripped.startswith("/*")
-                ):
-                    continue
-                # Entity declaration: EntityType {
-                if re.match(r"^\w+\s*\{", stripped):
-                    continue
-                # Valid relationship with cardinality: }|--|| Field : Label
-                if re.match(r"^\w+\s+[|}{]\-[-o]++[|}{]\w", stripped):
-                    continue
-                # Valid relationship with cardinality: o||--o{ Field : Label  
-                if re.match(r"^\w+\s+[|}{o]\-[-][|}{o]\w", stripped):
-                    continue
-                # Bare arrow without cardinality: EntityA --> EntityB
-                if re.match(r"^\w+\s*-->\s*\w", stripped):
-                    errors.append(
-                        f"Mermaid block #{block_num}: ER diagram relationship "
-                        f"missing cardinality. Use e.g. 'EntityA }}|--|| EntityB' "
-                        f"instead of '{stripped}'"
-                    )
-
-        # Check 6: sequenceDiagram — check for participant declarations
-        if re.search(r"^sequenceDiagram\s*$", body, re.MULTILINE):
-            has_participant = bool(re.search(r"\b(participant|actor)\s+", body))
-            if not has_participant:
-                # Could be a valid diagram with auto-generated participants, but
-                # it's suspicious enough to flag as a warning (not error)
-                pass  # sequence diagrams can be valid without explicit participants
-
-    return errors
+    try:
+        result = subprocess.run(
+            [str(_VALIDATE_MERMAID), "--file", file_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        # parse JSON report from stdout
+        report = json.loads(result.stdout) if result.stdout.strip() else {}
+        errors: list[str] = []
+        for file_result in report.get("files", []):
+            for block in file_result.get("blocks", []):
+                for err in block.get("errors", []):
+                    errors.append(f"Mermaid in {file_result['file']}: {err}")
+        return errors
+    except FileNotFoundError:
+        # Wrapper not found — skip validation (graceful degradation)
+        return []
+    except subprocess.TimeoutExpired:
+        return ["Mermaid validation timed out (30s limit)"]
+    except json.JSONDecodeError:
+        return ["Mermaid validation: could not parse report from wrapper"]
+    except Exception as e:
+        return [f"Mermaid validation error: {e}"]
 
 
 def evaluate_mermaid_syntax(
-    metrics: list[ChapterMetrics], drafts: dict[str, str]
+    metrics: list[ChapterMetrics], chapters: dict[str, str]
 ) -> None:
     """
-    Run Mermaid syntax validation on each chapter and append errors
-    to the chapter's `failures` list.
+    Run the Node.js Mermaid validation wrapper on each chapter and append
+    errors to the chapter's `failures` list.
+
+    The wrapper extracts all ```mermaid blocks and validates them using
+    mermaid.parse() — the authoritative structural check.
     """
     for m in metrics:
         if m.file in {"00-metadata.md", "99-unresolved.md", "traceability.md", "README.md"}:
             continue
-        content = drafts.get(m.file, "")
+        content = chapters.get(m.file, "")
         if not content:
             continue
-        syntax_errors = validate_mermaid_syntax(content)
-        for err in syntax_errors:
-            m.failures.append(f"Mermaid syntax: {err}")
+        # Write chapter to a temp file so the wrapper can process it
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False
+        ) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            syntax_errors = _validate_mermaid_file(tmp_path)
+            for err in syntax_errors:
+                m.failures.append(err)
+        finally:
+            os.unlink(tmp_path)
 
 
 # ----------------------------------------------------------------------------

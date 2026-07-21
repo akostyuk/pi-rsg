@@ -79,6 +79,7 @@ All diagrams in `drafts/` and `final/` MUST be rendered as **Mermaid fenced code
 4. **`graph` / `flowchart` has a direction** — must be `graph TB`, `flowchart LR`, etc. Bare `graph` or `flowchart` without direction is invalid
 5. **ER diagram relationships have cardinality** — use `}o|--||`, `||--|{`, etc. Bare `EntityA --> EntityB` without cardinality markers is invalid
 6. **No trailing colons on transition labels** — `Expired --> Queued: label` is valid; `Expired --> Queued:` (colon with no text after) may be valid but look suspicious
+7. **`validate-mermaid` wrapper validation** — before saving any chapter to `drafts/`, run the bash wrapper: `skills/pi-rsg/scripts/validate-mermaid --file <chapter-file.md>` (or `--dir <drafts-dir>` for a full directory). When run from outside the `pi-rsg` project, prepend `--pi-rsg-dir <path-to-pi-rsg>`. The wrapper resolves `mermaid` and `dompurify` from `pi-rsg/node_modules` automatically — no manual path setup needed. It extracts all ` ```mermaid ` blocks and validates them using `mermaid.parse()` — the authoritative structural check. If the wrapper exits with code 1 (errors reported), **fix the diagram before saving**. Mental validation (items 1–6) is a fast pre-filter, but the wrapper is the final gate.
 
 **If any check fails, fix the diagram before saving.** A malformed Mermaid block will not render in the spec viewer and will be flagged by `coverage-check.py` in Phase 4, triggering a loopback.
 

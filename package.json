@@ -2,12 +2,23 @@
   "name": "pi-rsg",
   "version": "0.3.0",
   "description": "Reverse-engineer comprehensive specification documents from existing codebases through goal-driven reconnaissance, WBS-based parallel investigation, and iterative question-bank dialogue.",
-  "keywords": ["pi-package", "specification", "reverse-engineering", "code-analysis"],
+  "keywords": [
+    "pi-package",
+    "specification",
+    "reverse-engineering",
+    "code-analysis"
+  ],
   "license": "MIT",
   "pi": {
-    "skills": ["./skills"]
+    "skills": [
+      "./skills"
+    ]
   },
-  "dependencies": {},
+  "dependencies": {
+    "dompurify": "^3.4.12",
+    "jsdom": "^29.1.1",
+    "mermaid": "^10.9.6"
+  },
   "engines": {
     "node": ">=18.0.0"
   }
