@@ -22,7 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Regex-based Python extractor** (`python_regex_ext.py`): zero external dependencies — works without `tree-sitter-python`. Detects functions, classes, FastAPI/Flask endpoints, Pydantic schemas, Django models, Celery tasks. Falls back to file-level units only when no Python extractor is available.
+
 ### Fixed
+- **Phase 5 missing `### Procedure` section**: Phase 5 was the only phase without a `### Procedure` block, causing the main agent to skip the interactive dialogue entirely — it would merely note "questions exist" and advance to Phase 6. Added a 6-step Procedure to Phase 5 (read `questions.json` → Stage 1 big-picture question → Stage 2 critical clusters → Stage 3 per-question dialogue → state.json update + re-verify → skip-prevention gate) matching the structure of all other phases (0–4, 6).
 - `coverage-check.py`: fix `NameError: name 'drafts' is not defined` in `build_report()` — the Mermaid validation call referenced a non-existent variable; renamed to `chapters` (the actual dict of scanned chapter files).
 
 ## [0.2.0] — 2026-07-18

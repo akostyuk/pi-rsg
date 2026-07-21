@@ -74,8 +74,16 @@ def _autoload() -> None:
     Each module guards its own registration on tree-sitter availability, so a
     missing optional dependency simply leaves that language unregistered (the
     pipeline then falls back to file-level units + a loud warning).
+
+    Python has two extractors: ``python_ext`` (tree-sitter, preferred) and
+    ``python_regex_ext`` (regex-based, zero dependencies). The regex version
+    checks whether "python" is already registered and skips if so — this way
+    tree-sitter takes priority when available, regex is the fallback otherwise.
     """
-    for mod in ("python_ext", "typescript_ext", "ruby_ext",
+    for mod in ("python_regex_ext",  # regex first — registers only if python not yet taken
+                "python_ext",        # tree-sitter — overwrites regex when available
+                "typescript_ext",
+                "ruby_ext",
                 "php_ext", "java_ext", "csharp_ext",
                 "go_ext", "sql_ext", "cobol_ext"):
         try:

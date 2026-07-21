@@ -992,6 +992,43 @@ NOTE: Do NOT modify the file. You are read-only. Return the verification report 
 ### Purpose
 Through dialogue with the user, resolve uncertainty markers and the Question Bank, refining the spec.
 
+### Procedure
+
+1. **Read `questions.json` and assess status**
+   - Count total questions, `open` count, and `open / total` ratio.
+   - If `questions.json` has fewer than 10 entries, review Phase 3 drafts and extract at least 5 ambiguous spots into `questions.json` (see "To prevent Phase 5 padding" below).
+   - **If `open / total > 0.2`**: Phase 5 is NOT complete. Continue dialogue until ratio drops below 0.2.
+
+2. **Stage 1 — Present the big picture (mandatory, once)**
+   - Ask the user **a single question** via `ask_user_question` (see Stage 1 template below).
+   - Record the user's choice: `"Answer all"`, `"Critical only"`, or `"Skip with abandoned"`.
+   - If `"Skip with abandoned"` is chosen, mark ALL remaining questions as `abandoned` and skip to step 6.
+
+3. **Stage 2 — Present critical clusters (mandatory, at least 3 clusters)**
+   - If Stage 1 selected `"Answer all"` or `"Critical only"`, group critical questions into related clusters.
+   - **At least 3 clusters** are required (if fewer naturally, split mid-grain).
+   - Present each cluster as one `ask_user_question` (see Stage 2 template below).
+   - For each cluster, update the corresponding questions in `questions.json` based on the user's choice.
+
+4. **Stage 3 — Per-question dialogue (residual questions)**
+   - Present remaining (non-critical) questions via `ask_user_question`.
+   - For each question, reflect the answer into `questions.json` (see Stage 3 template below).
+   - Update the corresponding chapter draft: remove uncertainty markers, fill in `[BLOCKED: see Q-NNN]` sections.
+
+5. **Update state.json and re-verify**
+   - Update `state.json` with `phase_5.status: "in_progress"` and `phase_5.stage: <current_stage>`.
+   - Re-run `coverage-check.py` to verify `--max-open-ratio 0.2` still holds.
+   - **If the check fails** (open ratio > 0.2): return to step 2 and continue dialogue.
+   - **If the check passes**: set `phase_5.status: "complete"` and proceed to Phase 6.
+
+6. **Phase 5 skip-prevention check (mandatory before declaring complete)**
+   - Verify ALL of the following hold:
+     - `questions.json` open-ratio ≤ 20%
+     - **≥ 1 `AskUserQuestion` call was emitted in Phase 5** (Stage 1 + Stage 2 + Stage 3)
+     - **≥ 1 question entry in `questions.json` has a populated `answer` field**
+   - **If ANY check fails**: do NOT mark Phase 5 complete. Restart the 3-stage dialogue from step 2.
+   - Record per-question `answered_by` (user vs. agent inference) and `answered_at` (real UTC timestamp).
+
 ### All 3 stages are mandatory
 
 `coverage-check.py` enforces `--max-open-ratio 0.2`, so leaving more than 20% of items as `open` blocks progression to Phase 6. Run all 3 stages.
