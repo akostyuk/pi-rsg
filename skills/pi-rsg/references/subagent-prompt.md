@@ -31,7 +31,6 @@ Produce a draft of the assigned chapter and report completion to the main agent.
 ================================
 - Role: investigation agent (chapter-draft author)
 - Main agent: pi-rsg coordinator
-- Number of other agents running in parallel: {parallel_count}
 - Cross-chapter consistency checks happen separately in Phase 4,
   so focus on accuracy within your assigned chapter.
 
@@ -182,7 +181,6 @@ The main agent fills these variables when launching the sub-agent:
 
 ```python
 prompt_variables = {
-    "parallel_count": 8,
     "primary_reader": "Maintenance developer",
     "reader_description": "Engineer who inherited the codebase",
     "reader_action": "Code change",
@@ -258,39 +256,59 @@ def investigate_chapter(prompt):
 Pseudocode (Python-like):
 
 ```python
-from collections import defaultdict
+def launch_subagents(wbs, goal, inventory, parallelism=1):
+    """
+    Launch chapter-investigator sub-agents.
 
-def launch_subagents(wbs, goal, inventory):
-    tasks = []
-    for chapter in wbs.chapters:
-        # chapter.file_name was finalised in Phase 2 (naming regex ^(0\d|[1-9]\d)-[a-z0-9-]+\.md$)
-        chapter_inventory = [
-            item for item in inventory.items
-            if item.id in chapter.assigned_inventory_ids
-        ]
-        prompt = render_subagent_prompt(
-            chapter=chapter,
-            goal=goal,
-            inventory_items=chapter_inventory,
-            parallel_count=len(wbs.chapters),
-            output_file_name=chapter.file_name,    # required: handed to the sub-agent
-        )
-        task = Task(
-            description=f"Investigate chapter: {chapter.chapter_title}",
-            prompt=prompt,
-            subagent_type="general-purpose"
-        )
-        tasks.append(task)
+    parallelism=1  → sequential (one at a time)
+    parallelism=N>1 → batched (N per turn, wait for all, then next batch)
+    """
+    chapters = list(wbs.chapters)
 
-    # Parallel launch
-    results = run_in_parallel(tasks)
+    if parallelism == 1:
+        # Sequential mode
+        for chapter in chapters:
+            prompt = _build_prompt(chapter, goal, inventory)
+            result = subagent(
+                prompt=prompt,
+                description=f"Investigate chapter: {chapter.chapter_title}",
+                subagent_type="chapter-investigator",
+                run_in_background: true
+            ).result
+            save_draft(f"drafts/{chapter.file_name}", result.markdown)
+            merge_questions(result.questions)
 
-    # Aggregate results; only file names finalised in wbs.json are used (free naming forbidden)
-    for result, chapter in zip(results, wbs.chapters):
-        save_draft(f"drafts/{chapter.file_name}", result.markdown)
-        merge_questions(result.questions)
-        if result.blocked_sections:
-            mark_blocked(chapter.file_name, result.blocked_sections)
+    else:
+        # Batched mode: emit `parallelism` calls per turn
+        for i in range(0, len(chapters), parallelism):
+            batch = chapters[i:i + parallelism]
+            tasks = []
+            for chapter in batch:
+                prompt = _build_prompt(chapter, goal, inventory)
+                tasks.append(subagent(
+                    prompt=prompt,
+                    description=f"Investigate chapter: {chapter.chapter_title}",
+                    subagent_type="chapter-investigator",
+                    run_in_background: true
+                ))
+            # Wait for all tasks in this batch
+            results = [t.result for t in tasks]
+            for result, chapter in zip(results, batch):
+                save_draft(f"drafts/{chapter.file_name}", result.markdown)
+                merge_questions(result.questions)
+
+def _build_prompt(chapter, goal, inventory):
+    chapter_inventory = [
+        item for item in inventory.items
+        if item.id in chapter.assigned_inventory_ids
+    ]
+    return render_subagent_prompt(
+        chapter=chapter,
+        goal=goal,
+        inventory_items=chapter_inventory,
+        output_file_name=chapter.file_name,
+    )
+```
 ```
 
 ---
@@ -307,3 +325,128 @@ The main agent confirms the following on every sub-agent result:
 - [ ] No detail mentions of out-of-scope inventory items (cross-check with grep).
 
 Sub-agent results that fail these checks are re-run or sent to manual correction.
+
+---
+
+## Phase 4: Chapter Verifier Sub-agent
+
+In Phase 4, the main agent dispatches `chapter-verifier` sub-agents to verify each chapter draft against quality gates. This is controlled by `goal.json.phase4_parallelism` (default: `1`).
+
+### Prompt structure for chapter-verifier
+
+The verifier prompt is simpler than the investigator prompt — it only needs:
+
+1. **Role**: "You are a chapter verifier. Read-only check."
+2. **Chapter path**: e.g. `rds/drafts/05-data-model.md`
+3. **Chapter kind**: `"standard"` or `"user_custom"`
+4. **Quality gates**: the metrics to check
+5. **Output format**: structured report with PASS/FAIL + feedback
+
+### Full verifier prompt template
+
+```
+You are the chapter-verifier handling {chapter_path} (kind: {chapter_kind}).
+
+Verify this chapter against the quality gates:
+- Body lines (excluding code blocks and comments): ≥ 200 (standard) / ≥ 10 (user_custom)
+- [REF: path:start-end] citations: ≥ 10, with precise line ranges
+- fenced code blocks: ≥ 3
+- Mermaid diagrams (```mermaid): ≥ 1
+- ## Sources Read section: ≥ 5 files listed
+
+Read the file with the Read tool, count each metric, and return a structured report:
+- Status: PASS or FAIL
+- Quality metrics (count / required)
+- Failures (if any) with suggestions for improvement
+- Malformed references (if any)
+
+NOTE: Do NOT modify the file. You are read-only. Return the verification report only.
+```
+
+### Dispatch logic (sequential vs batched)
+
+```python
+def verify_chapters(wbs, parallelism=1):
+    chapters = list(wbs.chapters)
+
+    if parallelism == 1:
+        # Sequential mode
+        for chapter in chapters:
+            result = subagent(
+                prompt=f"Verify {chapter.file_name}...",
+                description=f"verify {chapter.chapter_title}",
+                subagent_type="chapter-verifier",
+                run_in_background: true
+            ).result
+            if result.status == "FAIL":
+                loopback_to_phase3(chapter, result.failures)
+
+    else:
+        # Batched mode: emit `parallelism` calls per turn
+        for i in range(0, len(chapters), parallelism):
+            batch = chapters[i:i + parallelism]
+            tasks = []
+            for chapter in batch:
+                tasks.append(subagent(
+                    prompt=f"Verify {chapter.file_name}...",
+                    description=f"verify {chapter.chapter_title}",
+                    subagent_type="chapter-verifier",
+                    run_in_background: true
+                ))
+            # Wait for all tasks in this batch
+            results = [t.result for t in tasks]
+            for result, chapter in zip(results, batch):
+                if result.status == "FAIL":
+                    loopback_to_phase3(chapter, result.failures)
+```
+
+### Loopback procedure
+
+When a verifier returns `Status: FAIL`:
+1. Identify the failed chapter and collect all failure details (e.g. `body lines: 150/200, [REF:] count: 7/10`)
+2. **Dispatch a new `chapter-investigator` sub-agent** with:
+   - The same `inventory_ids` as before
+   - The failure report from the verifier
+   - Instruction: "Read additional sources beyond those already cited. Thicken the body, add more `[REF:]` citations with precise line ranges, and ensure all quality gates pass."
+3. The new investigator runs in an **isolated context**, reads additional source files, and rewrites the chapter draft.
+4. Re-dispatch the chapter-verifier for that chapter.
+5. **Maximum loopback iterations: 2**. If still failing after 2 re-investigation cycles: demote to `99-unresolved.md` (standard) or prompt user (user_custom).
+
+### Example: re-investigation prompt
+
+```
+You are the chapter-investigator handling Chapter 5: Data Model (re-investigation).
+
+Previous verification failed with these issues:
+- Body lines: 150 / required ≥ 200
+- [REF:] citations: 7 / required ≥ 10
+- Mermaid diagrams: 0 / required ≥ 1
+
+Target inventory_ids:
+- INV-012 (Project)
+- INV-013 (Issue)
+- INV-014 (User)
+- INV-015 (Role)
+
+Corresponding real sources (Read these with the Read tool):
+- app/models/project.rb
+- app/models/issue.rb
+- app/models/user.rb
+- app/models/role.rb
+- db/schema.rb (relevant portions)
+
+**IMPORTANT**: You must read ADDITIONAL source files beyond those listed above.
+Check app/models/concerns/, lib/, config/ for related logic.
+
+Draft output path: rds/drafts/05-data-model.md (overwrite existing)
+
+Quality bar (MUST meet all):
+- Body ≥ 200 lines
+- [REF: path:start-end] ≥ 10, with precise line ranges
+- fenced code blocks ≥ 3
+- Mermaid diagrams ≥ 1 (ER diagram recommended)
+- ≥ 5 files under ## Sources Read
+
+When done, return the chapter's key points + a list of detail questions raised.
+Do NOT paste the chapter body into the return value — it is already saved to `rds/drafts/NN-slug.md`.
+```

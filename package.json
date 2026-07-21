@@ -1,6 +1,6 @@
 {
   "name": "pi-rsg",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Reverse-engineer comprehensive specification documents from existing codebases through goal-driven reconnaissance, WBS-based parallel investigation, and iterative question-bank dialogue.",
   "keywords": ["pi-package", "specification", "reverse-engineering", "code-analysis"],
   "license": "MIT",

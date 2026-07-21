@@ -144,7 +144,7 @@ List questions raised while writing the chapter as a **full list inside the trai
 
 ## What to return on completion (mode B contract)
 
-Your `Task` tool return-value text MUST follow the format below. **Pasting the chapter body is strictly forbidden** — the body is already saved to a file, and the main agent reads it from there when needed.
+Your return-value text MUST follow the format below. **Pasting the chapter body is strictly forbidden** — the body is already saved to a file, and the main agent reads it from there when needed.
 
 ```
 Chapter NN saved: rds/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)

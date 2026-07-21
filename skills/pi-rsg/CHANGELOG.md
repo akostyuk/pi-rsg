@@ -24,6 +24,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `archive-session.py` — packs `rds/` artifacts into `rds/archive/<session-name>/` and cleans stale state for the next run. Archives both `drafts/` and `final/`, then removes all files from both directories.
 - `HELP.md` — concise reference guide for quick start, common commands, and troubleshooting.
 
+## [0.2.0] — 2026-07-18
+
+### Added
+- **Configurable sub-agent parallelism**: `goal.json.phase3_subagent_parallelism` (default: 1) controls how many chapter-investigator sub-agents run concurrently in Phase 3. Value `1` = sequential; value `N > 1` = batched parallel (N calls per turn, wait for all results, then next batch).
+- **Configurable Phase 4 verification parallelism**: `goal.json.phase4_parallelism` (default: 1) controls how many chapter-verifier sub-agents run concurrently in Phase 4.
+- **New `chapter-verifier` sub-agent** (`agents/chapter-verifier.md`): read-only verifier that checks per-chapter quality gates (body lines ≥ 200, `[REF:]` count ≥ 10, code blocks ≥ 3, Mermaid diagrams ≥ 1, Sources Read ≥ 5) and returns structured PASS/FAIL report with detailed feedback.
+- **Phase 0 Q6-Q7**: two new configuration questions — chapter investigation parallelism (Q6) and verification parallelism (Q7). Total Phase 0 questions increased from 5 to 7.
+- **Phase 4 per-chapter verification via sub-agents**: after `coverage-check.py` global checks, each chapter is verified by an isolated `chapter-verifier` sub-agent. Failing chapters are looped back to Phase 3 with detailed failure feedback.
+- **Re-investigation mode for `chapter-investigator`**: when looped back from Phase 4, the investigator receives verification feedback and reads additional source files to thicken the chapter.
+
+### Changed
+- **Phase 3 STEP G**: sequential dispatch is now the default and recommended mode. Parallel batched dispatch (N > 1) is opt-in via `phase3_subagent_parallelism`. The previous "MANDATORY parallel dispatch" rule has been removed.
+- **Phase 4 loopback procedure**: failing chapters are now re-dispatched to a new `chapter-investigator` sub-agent (with verification feedback) instead of being patched by the main agent. Maximum 2 loopback iterations per chapter.
+- **`references/subagent-prompt.md`**: updated with Phase 4 verifier prompt template and re-investigation example.
+- **`AGENTS.md`**: updated common pitfalls #6 to reflect configurable parallelism for both Phase 3 and Phase 4.
+
+### Fixed
+- **`Task` tool references removed**: all occurrences of `Task` (legacy pi runtime tool name) replaced with `subagent` or removed in agent prompts and documentation.
+
+---
+
 ## [0.1.0] — 2026-07-17
 
 ### Added

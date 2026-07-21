@@ -18,8 +18,16 @@ You receive from the main agent:
 - The chapter number and title (e.g. `Chapter 5: Data Model`)
 - The assigned `inventory_ids` (e.g. `INV-012, INV-013, ...`)
 - The draft output path (e.g. `rds/drafts/05-data-model.md`)
+- **Optional: Verification feedback** (if this is a re-investigation after Phase 4 loopback)
 
 You investigate deeply in an isolated context and produce a draft that satisfies the quality gates.
+
+> **Re-investigation mode**: if the main agent provides verification feedback (list of failures from chapter-verifier), you MUST:
+> 1. Read the existing draft file (if it exists) to understand what was already written
+> 2. Identify which quality gates failed (e.g. body lines < 200, REF count < 10)
+> 3. Read **additional source files** beyond those already cited
+> 4. Thicken the body, add more `[REF:]` citations with precise line ranges
+> 5. Ensure all quality gates pass in the new draft
 
 > **Language handling**: render the chapter body, headings, prose, and
 > detail-question text in `goal.output_language` (`"ru"` by default,
@@ -156,7 +164,7 @@ The main agent reads this and appends the questions to `questions.json`.
 
 ## What to return on completion
 
-Your `Task` tool return-value text MUST include the following:
+Your return-value text MUST include the following:
 
 ```
 Chapter NN written to rds/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)

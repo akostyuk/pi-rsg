@@ -72,7 +72,10 @@ This manifest is the **single entry point** when the main agent needs a chapter-
 
 **G-4. Important constraints:**
 
-- **Sequential execution (parallelism 1)**: Each invocation of the subagent tool dispatches a fresh sub-agent in an isolated context. The main agent waits for each sub-agent before issuing the next; total time is similar to in-process processing, but the isolated per-chapter contexts improve quality.
+Read `rds/goal.json`'s `phase3_subagent_parallelism` to determine the dispatch strategy (default: `1`).
+
+- **Mode A: Sequential (`parallelism == 1`)**: Each invocation of the subagent tool dispatches a fresh sub-agent in an isolated context. The main agent waits for each sub-agent before issuing the next; total time is similar to in-process processing, but the isolated per-chapter contexts improve quality.
+- **Mode B: Batched (`parallelism == N > 1`)**: Emit N `subagent()` calls per turn, wait for all N results, process them (append questions to `questions.json`, update manifest), then emit the next batch. Never exceed N calls per turn.
 - **Prompt cache is NOT shared**: each sub-agent has an isolated LLM context, so token usage is 5–10× the main agent. **The sub-agent writes the chapter draft directly via the Write tool** (saved as a file, NOT returned in the subagent result text). The main agent only reads the 4 return blocks.
 - **Invoke once per chapter**. Bundling all chapters into one `subagent` call defeats the purpose (isolated contexts disappear).
 - **If the return value contains the chapter body**, re-run that chapter's subagent (re-emphasise in the prompt: "return value contains only the path and the summary — do NOT paste the body").

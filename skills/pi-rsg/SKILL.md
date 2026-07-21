@@ -3,8 +3,9 @@ name: pi-rsg
 description: |
   Reverse-engineer comprehensive specification documents from existing codebases
   (code → spec). 6-phase state machine: goal setup, reconnaissance, WBS planning,
-  parallel chapter investigation, quality verification, and iterative refinement.
-  Generates maintenance-ready specs with traceable [REF:] citations to source code.
+  configurable parallel chapter investigation (sequential or batched), quality
+  verification, and iterative refinement. Generates maintenance-ready specs with
+  traceable [REF:] citations to source code.
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, subagent, AskUserQuestion, WebFetch, WebSearch
 ---
 
@@ -38,7 +39,7 @@ This skill operates in the "code → spec" direction; it is the symmetric counte
 
 This skill operates under the following 11 principles. They are mutually reinforcing; if any one breaks, the reliability of the whole skill collapses.
 
-1. **Goal-driven**: Phase 0 fixes the goal through a 5-question choice-based dialogue and persists it to `rds/goal.json`. All subsequent phases reference this goal.
+1. **Goal-driven**: Phase 0 fixes the goal through a 7-question choice-based dialogue and persists it to `rds/goal.json`. All subsequent phases reference this goal.
 2. **Hybrid template decision**: Supports three template sources — the user's own template, a the agent-recommended template (derived from reconnaissance), or a user-adjusted version of the recommendation.
 3. **Reference-based inventory unit selection**: `references/inventory-units.md` lists typical units per language/framework; the relevant patterns for the target codebase are chosen from there.
 4. **Gap-prevention is anchored on inventory-based verification**: Enumerate every extractable unit from the code and mechanically check whether the spec covers each one.
@@ -166,7 +167,7 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - **Resume mode**: when `rds/goal.json` already exists, read the persisted `output_language` and skip this step entirely.
 
 4. **Run the 5 goal-definition questions**
-   - Use `AskUserQuestion` to ask the following 5 questions in sequence. **Question bodies, choice labels, and free-form-input placeholders are all rendered in the `output_language` selected in Step 3.** The choice labels below are shown when `output_language == "ru"`; the agent dynamically translates them when `output_language == "en"` (enum values such as `primary_reader: "maintenance_developer"` stay as language-independent English enums in `goal.json`). Each question is choice-based first with a free-form field as a fallback.
+   - Use `AskUserQuestion` to ask the following 6 questions in sequence. **Question bodies, choice labels, and free-form-input placeholders are all rendered in the `output_language` selected in Step 3.** The choice labels below are shown when `output_language == "ru"`; the agent dynamically translates them when `output_language == "en"` (enum values such as `primary_reader: "maintenance_developer"` stay as language-independent English enums in `goal.json`). Each question is choice-based first with a free-form field as a fallback.
    - **Question-text quality contract (applies to every `AskUserQuestion` call in every phase)**:
      1. **NEVER JSON-escape characters.** Emit raw UTF-8 only. If you find yourself writing `\uXXXX` form inside the `question` or `choices` strings, that is a defect — decode it before emitting.
      2. **Russian**: Use standard Russian orthography. Do NOT mix in Ukrainian/Belarusian variants or archaic forms. Self-check: re-read each label — if any word feels unusual for the context, regenerate it.
@@ -209,6 +210,21 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - Existing docs / want to retire
    - Other (free-form)
 
+   **Q6. How should chapter investigation be parallelised?**
+   - `1` (sequential — one sub-agent at a time, minimal context growth)
+   - `2` (batches of 2 — moderate speedup, controlled context)
+   - `3` (batches of 3 — faster, more context per turn)
+   - `5` (full parallelism — maximum speed, largest context growth)
+   - Other (free-form integer ≥ 1)
+   - **Mapping**: convert the selected label to an integer. Pre-defined labels map directly (`"1"` → `1`, `"2"` → `2`, etc.). Free-form input is parsed as an integer (default to `1` if parsing fails or value < 1). Persist as `phase3_subagent_parallelism` in `goal.json`.
+
+   **Q7. How should chapter verification be parallelised?**
+   - `1` (sequential — one verifier at a time, thorough)
+   - `2` (batches of 2 — moderate speedup)
+   - `3` (batches of 3 — faster)
+   - Other (free-form integer ≥ 1)
+   - **Mapping**: same as Q6. Persist as `phase4_parallelism` in `goal.json`. Default: `1`.
+
 5. **Extract `user_custom_deliverables` from `free_text_notes`**
    - **Mandatory.** Before persisting `goal.json`, scan `free_text_notes` for explicit deliverable filenames using the regex `\b[a-z][a-z0-9_-]*\.md\b` (case-insensitive). De-duplicate and exclude any name matching the chapter-naming regex `^(0\d|[1-9]\d)-[a-z0-9-]+\.md$` or the reserved names `00-metadata.md` / `99-unresolved.md` / `traceability.md` (those are handled by the standard chapter pipeline).
    - The remaining names are **user-promised custom deliverables**. They MUST appear in `final/` at Phase 6 completion; missing any of them is a hard failure (check 12 in `coverage-check.py`).
@@ -217,7 +233,7 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid / Sources Read minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
 
 6. **Persist to `goal.json`**
-   - Save the language choice from Step 3, the 5 answers from Step 4, and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `rds/`. Schema:
+   - Save the language choice from Step 3, the 7 answers from Step 4 (Q1–Q7), and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `rds/`. Schema:
 
    ```json
    {
@@ -228,11 +244,15 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
      "perspectives": ["functional_correctness", "operational"],
      "existing_docs": "none",
      "free_text_notes": "...",
-     "user_custom_deliverables": ["manual.md"]
+     "user_custom_deliverables": ["manual.md"],
+     "phase3_subagent_parallelism": 1,
+     "phase4_parallelism": 1
    }
    ```
    - `output_language` is required and must be one of: `"ru"` or `"en"`. Other enum fields (`primary_reader`, `reader_action`, `granularity`, `perspectives`, `existing_docs`) are language-independent English enums (localized only at display time using `output_language`).
    - `user_custom_deliverables` is a (possibly empty) array of file names that the user explicitly requested in `free_text_notes`. These bypass the chapter-naming regex; their filenames are preserved verbatim. Phase 2 adds them to `wbs.json` as `kind: "user_custom"` chapters; Phase 6 verifies every one of them exists in `final/`.
+   - `phase3_subagent_parallelism` is a positive integer (default: `1`). It controls how many chapter-investigator sub-agents run concurrently in Phase 3 STEP G. Value `1` means sequential (one at a time); values > 1 mean batches of that size. The main agent emits N `subagent()` calls, waits for all N results, then emits the next batch. This balances speed against main-agent context growth.
+   - `phase4_parallelism` is a positive integer (default: `1`). It controls how many chapter-verifier sub-agents run concurrently in Phase 4. Value `1` means sequential (one at a time); values > 1 mean batches of that size.
 
 7. **Phase 0 complete**
    - Update `state.json` and proceed to Phase 1.
@@ -695,8 +715,9 @@ Quality bar:
 - Mermaid diagrams ≥ 1 (ER diagram)
 - ≥ 5 files under ## Sources Read
 
-When done, return the chapter's key points + a list of detail questions raised.
-The detail questions are material for the main agent to append into questions.json.
+When done, return **only** the chapter's key points + a list of detail questions raised.
+Do NOT paste the chapter body into the return value — it is already saved to `rds/drafts/NN-slug.md`.
+The detail questions are material for the main agent to append into `questions.json`.
 
 NOTE: If goal.output_language == "ru", render the chapter body, headings,
 prose, and detail-question text in Russian. If goal.output_language == "en", render them in English.
@@ -712,43 +733,68 @@ in English regardless of output_language.
 
 **Important constraints**:
 
-- **MANDATORY: Emit ALL chapter `subagent()` calls in a SINGLE assistant turn (parallel dispatch).**
-  This is the most important rule of Phase 3. Read carefully — getting it wrong makes Phase 3 take **N× longer** than it needs to.
+Read `rds/goal.json`'s `phase3_subagent_parallelism` to determine the dispatch strategy. This value was set in Phase 0 (default: `1`).
 
-  **WRONG (sequential — DO NOT DO THIS):**
-  ```
-  Assistant turn 1: subagent("ch-02 ...")           ← issue ONE subagent
-                    ← wait for the result
-  Assistant turn 2: subagent("ch-03 ...")           ← then issue the next
-                    ← wait
-  Assistant turn 3: subagent("ch-06 ...")
-                    ...
-  ```
-  This pattern serialises everything. If each `chapter-investigator` takes 4 minutes and you have 8 chapters, Phase 3 takes ~32 minutes. The runtime's sub-agent concurrency pool is **wasted** because you only ever have 1 sub-agent in flight at a time.
+#### Mode A: Sequential (`phase3_subagent_parallelism == 1`)
 
-  **CORRECT (parallel — REQUIRED):**
-  ```
-  Assistant turn 1: subagent("ch-02 ...")
-                    subagent("ch-03 ...")
-                    subagent("ch-06 ...")
-                    subagent("ch-08 ...")
-                    subagent("ch-11 ...")
-                    ... (one subagent() per chapter, ALL emitted back-to-back)
-                    ← yield, do NOT plan / think / write anything else
-  Single Observation turn: receives all N results at once
-  ```
-  In one assistant turn, emit one `subagent()` tool call per chapter, back-to-back, with NO intervening text, NO `thought`-style narration, NO partial writes — just the subagent calls. Then yield control. The runtime fans them out concurrently and returns all Observations together when they complete.
+Each invocation of the subagent tool dispatches a fresh sub-agent in an isolated context. The main agent waits for each sub-agent to complete before issuing the next.
 
-  With a sub-agent concurrency of 5 and 8 chapters: ~2 batches of ~4 minutes each → ~8 minutes total instead of 32. **Wall time scales by `1 / concurrency`**.
+**CORRECT (sequential):**
+```
+Assistant turn 1: subagent("ch-02 ...")
+                  ← wait for the result
+Assistant turn 2: subagent("ch-03 ...")
+                  ← wait
+Assistant turn 3: subagent("ch-06 ...")
+                  ...
+```
+Each `chapter-investigator` runs in its own isolated LLM context. The main agent processes the return value (path + summary), then proceeds to the next chapter.
 
-  **Self-check before emitting `subagent()`:**
-  Have you written the prompts for **every** chapter that needs investigation in this Phase 3 round? If not, finish drafting them first, THEN emit them all together. Never emit one and "see how it goes" — that is the sequential anti-pattern.
+**WRONG (parallel when parallelism=1):**
+```
+Assistant turn 1: subagent("ch-02 ...")
+                  subagent("ch-03 ...")
+                  subagent("ch-06 ...")
+                  ...
+```
+Bundling all chapters into one turn defeats the purpose: the main agent's conversation context grows with each result, and isolated per-chapter contexts disappear.
 
-  **Runtime concurrency mechanics.** pi's `subagent` tool dispatches sub-agents in parallel up to its own pool. Each call must include `run_in_background: true` so the runtime launches them concurrently rather than waiting for each one to complete before issuing the next.
+#### Mode B: Batched parallel (`phase3_subagent_parallelism == N > 1`)
+
+The main agent emits **N `subagent()` calls per turn**, waits for all N results, then emits the next batch of N. This balances speed against context growth.
+
+**CORRECT (batched, parallelism=3 example):**
+```
+Assistant turn 1: subagent("ch-02 ...")
+                  subagent("ch-03 ...")
+                  subagent("ch-06 ...")
+                  ← wait for all 3 results
+Assistant turn 2: subagent("ch-08 ...")
+                  subagent("ch-11 ...")
+                  subagent("ch-14 ...")
+                  ← wait for all 3 results
+Assistant turn 3: subagent("ch-17 ...")   ← remaining (≤N)
+                  ← wait
+```
+Each batch of N runs in parallel up to the runtime's concurrency pool. After all N results arrive, the main agent processes them (appends questions to `questions.json`, updates manifest) and emits the next batch.
+
+**WRONG (all-at-once when parallelism < total chapters):**
+```
+Assistant turn 1: subagent("ch-02 ...")
+                  subagent("ch-03 ...")
+                  subagent("ch-06 ...")
+                  subagent("ch-08 ...")    ← exceeds parallelism budget
+                  ...
+```
+Only emit exactly `phase3_subagent_parallelism` calls per turn. If chapters don't divide evenly, the last batch may have fewer.
+
+#### Shared constraints (both modes)
 
 - **Prompt cache is NOT shared**: each sub-agent has an isolated LLM context, so token usage is 5–10× the main agent.
-- **The sub-agent writes the chapter draft directly via the Write tool** (saved as a file, NOT returned in the subagent result text). The main agent reads the return value and appends detail questions into `questions.json`.
+- **The sub-agent writes the chapter draft directly via the Write tool** (saved as a file, NOT returned in the subagent result text). The main agent reads only the return value (path + summary) and appends detail questions into `questions.json`.
 - **One `subagent()` per chapter**. Bundling all chapters into a single `subagent` call defeats the purpose (the isolated context per chapter disappears).
+- **Return value is summary-only**: The sub-agent MUST return only the chapter path, a short key-findings summary (≤5 bullets), and top detail questions. The full chapter body is saved to `drafts/NN-slug.md` and never enters the main agent's conversation history.
+- **Batch processing in Mode B**: After each batch completes, the main agent MUST process all results (append questions, update manifest) before emitting the next batch. Do NOT interleave batch emission with result processing.
 
 **When the `subagent` tool is unavailable**, the main agent performs STEP A-F itself per chapter.
 
@@ -854,29 +900,83 @@ Run inventory cross-check, per-chapter quality metrics, MECE check, and consiste
    - MECE coverage (≥ 70%)
    - **Check 12 — User-custom deliverables**: every filename in `goal.json.user_custom_deliverables` must exist in the target directory (`drafts/` in Phase 4, `final/` in Phase 6) AND have a non-empty body (≥ 10 non-blank lines outside code fences).
 
-3. **Failure → loop back to Phase 3**
-   - When exit code is 1, read the "gate decision" section of the output and:
-     1. Identify the failed chapter (e.g. `chapter 05-data-model.md: [REF:] count is 7 < required 10`)
-     2. **Read additional sources** corresponding to the chapter's `assigned_inventory_ids`
-     3. Add to Sources Read, raise `[REF:]` count, thicken the body
-     4. Re-run coverage-check.py
-   - For `user_custom` chapters that are missing or empty, treat the failure the same way: return to Phase 3 and fill the chapter using `wbs.json.chapters[].source_intent` and any Phase 5 dialogue answers that pertain to it.
-   - Maximum iterations: **3**. If a `kind: "standard"` chapter still fails after 3 attempts, record it in `99-unresolved.md` as "insufficient quality" and continue. A failing `kind: "user_custom"` chapter must NOT be silently demoted to `99-unresolved.md`; instead, prompt the user via `AskUserQuestion` to (a) keep retrying, (b) reduce scope, or (c) abandon the deliverable explicitly.
+3. **Per-chapter verification via sub-agents (isolated context)**
+   - Read `rds/goal.json`'s `phase4_parallelism` to determine the dispatch strategy (default: `1`).
+   - For each chapter in `wbs.json.chapters[]` (standard + user_custom), dispatch a `chapter-verifier` sub-agent in an isolated context.
+   - **Mode A: Sequential (`phase4_parallelism == 1`)**:
+     ```
+     Assistant turn 1: subagent("verify ch-02 ...")
+                       ← wait for the result
+     Assistant turn 2: subagent("verify ch-03 ...")
+                       ← wait
+     ...
+     ```
+   - **Mode B: Batched (`phase4_parallelism == N > 1`)**:
+     ```
+     Assistant turn 1: subagent("verify ch-02 ...")
+                       subagent("verify ch-03 ...")
+                       subagent("verify ch-06 ...")
+                       ← wait for all N results
+     Assistant turn 2: subagent("verify ch-08 ...")
+                       ...
+     ```
+   - The sub-agent reads the chapter file, checks all quality gates (body lines, REF count, code blocks, Mermaid, Sources Read), and returns a structured report with `Status: PASS | FAIL` + detailed feedback.
+   - **If `Status: FAIL`**: identify the failed chapter, read additional sources corresponding to its `assigned_inventory_ids`, thicken the body, add more `[REF:]` citations, and re-dispatch the verifier. Maximum **2 loopback iterations** per chapter (after that, demote to `99-unresolved.md` for standard chapters, or prompt user for user_custom).
+   - **If `Status: PASS`**: proceed to the next chapter.
+   - After all chapters pass (or hit the loopback limit), continue to step 4.
 
-4. **Cross-reference verification**
+   **Sub-agent invocation template:**
+   ```
+   subagent(
+     prompt="""
+You are the chapter-verifier handling rds/drafts/05-data-model.md (kind: standard).
+
+Verify this chapter against the quality gates:
+- Body lines (excluding code blocks and comments): ≥ 200
+- [REF: path:start-end] citations: ≥ 10, with precise line ranges
+- fenced code blocks: ≥ 3
+- Mermaid diagrams (```mermaid): ≥ 1
+- ## Sources Read section: ≥ 5 files listed
+
+Read the file with the Read tool, count each metric, and return a structured report:
+- Status: PASS or FAIL
+- Quality metrics (count / required)
+- Failures (if any) with suggestions for improvement
+- Malformed references (if any)
+
+NOTE: Do NOT modify the file. You are read-only. Return the verification report only.
+     """,
+     description="verify ch05 data-model",
+     subagent_type="chapter-verifier",
+     run_in_background: true
+   )
+   ```
+
+3. **Failure → loop back to Phase 3 (via chapter-investigator)**
+   - When `coverage-check.py` exits with code 1 OR a chapter-verifier sub-agent returns `Status: FAIL`:
+     1. Identify the failed chapter and collect all failure details (e.g. `chapter 05-data-model.md: [REF:] count is 7 < required 10, body lines 150 < required 200`)
+     2. **Re-dispatch a new `chapter-investigator` sub-agent** for that chapter with:
+        - The same `inventory_ids` as before
+        - The failure report from the verifier (so the investigator knows what to fix)
+        - Instruction: "Read additional sources beyond those already cited. Thicken the body, add more `[REF:]` citations with precise line ranges, and ensure all quality gates pass."
+     3. The new investigator runs in an **isolated context**, reads additional source files, and rewrites the chapter draft.
+     4. Re-dispatch the chapter-verifier for that chapter.
+   - **Maximum loopback iterations: 2**. If a `kind: "standard"` chapter still fails after 2 re-investigation cycles, record it in `99-unresolved.md` as "insufficient quality" and continue. A failing `kind: "user_custom"` chapter must NOT be silently demoted to `99-unresolved.md`; instead, prompt the user via `AskUserQuestion` to (a) keep retrying, (b) reduce scope, or (c) abandon the deliverable explicitly.
+
+5. **Cross-reference verification**
    - Check whether any cross-chapter inconsistency exists for the same concept.
    - File inconsistencies into `questions.json` with `priority: critical`.
 
-5. **Deduplicate questions**
+6. **Deduplicate questions**
    - Detect duplicates across the entire Question Bank.
    - Merge only the "obviously identical"; flag the "similar but subtly different" as groups for Phase 5 confirmation.
 
-6. **Save the verification report**
+7. **Save the verification report**
    - Save `coverage-check.py --output-format json` output to `rds/coverage-report.json`.
    - Save a human-readable version to `rds/coverage-report.md`.
 
-7. **Phase 4 complete**
-   - Once every chapter passes (or hits the 3-attempt qualitative limit), update `state.json` and proceed to Phase 5.
+8. **Phase 4 complete**
+   - Once every chapter passes (or hits the loopback limit), update `state.json` and proceed to Phase 5.
 
 ### Phase-specific cautions
 - **Do not proceed to Phase 5 until coverage-check.py PASSes** (up to 3 loop iterations). Setting `phase_4.all_quality_gates_passed: true` is only allowed when the most recent `coverage-check.py` invocation returned exit code 0.
