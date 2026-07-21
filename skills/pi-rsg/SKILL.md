@@ -39,7 +39,7 @@ This skill operates in the "code → spec" direction; it is the symmetric counte
 
 This skill operates under the following 11 principles. They are mutually reinforcing; if any one breaks, the reliability of the whole skill collapses.
 
-1. **Goal-driven**: Phase 0 fixes the goal through a 7-question choice-based dialogue and persists it to `rds/goal.json`. All subsequent phases reference this goal.
+1. **Goal-driven**: Phase 0 fixes the goal through a 7-question choice-based dialogue and persists it to `rds/analysis/<session_name>/goal.json`. All subsequent phases reference this goal.
 2. **Hybrid template decision**: Supports three template sources — the user's own template, a the agent-recommended template (derived from reconnaissance), or a user-adjusted version of the recommendation.
 3. **Reference-based inventory unit selection**: `references/inventory-units.md` lists typical units per language/framework; the relevant patterns for the target codebase are chosen from there.
 4. **Gap-prevention is anchored on inventory-based verification**: Enumerate every extractable unit from the code and mechanically check whether the spec covers each one.
@@ -49,7 +49,7 @@ This skill operates under the following 11 principles. They are mutually reinfor
 8. **The dialogue protocol is the agent-driven**: Choice-based questions are the default; free-form input is a fallback. AskUserQuestion-style choice UIs are exploited to the maximum.
 9. **Unanswerable questions are marked `abandoned`**: They are explicitly recorded in the final spec under "unresolved items", never hidden.
 10. **Dual-consumer handling is reduced to one in goal definition**: If multiple views are needed, restart instead of overloading a single spec.
-11. **Output language is chosen in Phase 0 (Русский / English) — Russian is the BASE language**: The very first dialogue is bilingual (Russian first, then English). The default selection is provided by the parent harness's initial prompt (the user's UI-language hint; falls back to `"ru"`). The answer is persisted to `rds/goal.json` as `output_language` (`"ru"` or `"en"`). All subsequent natural-language output — AskUserQuestion bodies and choices, progress messages, confirmation summaries, generated spec body and chapter titles, `questions.json` `body` / `answer`, Phase 4 verification reports, resume messages — uses that language. Internal identifiers and machine-readable elements — state keys (`current_phase` etc.), IDs (`Q-XXX` / `INV-XXX`), file names (ASCII slug), `[REF: file:lines]`, `[CONFIDENCE: HIGH|MED|LOW]`, `[ASK SME]`, `[ASSUMED: ...]`, `[BLOCKED: ...]` marker names, and `goal.json` enum values (`primary_reader: "maintenance_developer"` etc.) — stay English **regardless of `output_language`**. The literal `## Sources Read` heading also stays English (so `coverage-check.py` pattern-matches it). The entire skill bundle (this SKILL.md, `agents/`, `variants/`, `templates/*.md`, `references/*.md`, and `scripts/*.py` docstrings / messages) is English-base. When `output_language == "ru"`, the agent dynamically renders deliverable text (chapter body, AskUserQuestion bodies, progress messages, etc.) in Russian while preserving every machine-readable element verbatim.
+11. **Output language is chosen in Phase 0 (Русский / English) — Russian is the BASE language**: The very first dialogue is bilingual (Russian first, then English). The default selection is provided by the parent harness's initial prompt (the user's UI-language hint; falls back to `"ru"`). The answer is persisted to `rds/analysis/<session_name>/goal.json` as `output_language` (`"ru"` or `"en"`). All subsequent natural-language output — AskUserQuestion bodies and choices, progress messages, confirmation summaries, generated spec body and chapter titles, `questions.json` `body` / `answer`, Phase 4 verification reports, resume messages — uses that language. Internal identifiers and machine-readable elements — state keys (`current_phase` etc.), IDs (`Q-XXX` / `INV-XXX`), file names (ASCII slug), `[REF: file:lines]`, `[CONFIDENCE: HIGH|MED|LOW]`, `[ASK SME]`, `[ASSUMED: ...]`, `[BLOCKED: ...]` marker names, and `goal.json` enum values (`primary_reader: "maintenance_developer"` etc.) — stay English **regardless of `output_language`**. The literal `## Sources Read` heading also stays English (so `coverage-check.py` pattern-matches it). The entire skill bundle (this SKILL.md, `agents/`, `variants/`, `templates/*.md`, `references/*.md`, and `scripts/*.py` docstrings / messages) is English-base. When `output_language == "ru"`, the agent dynamically renders deliverable text (chapter body, AskUserQuestion bodies, progress messages, etc.) in Russian while preserving every machine-readable element verbatim.
 
 ---
 
@@ -112,11 +112,11 @@ If a particular node needs visual emphasis, use **shape** (e.g. diamond for deci
 
 ## 6-phase state machine overview
 
-The skill is implemented as a 6-phase state machine. Progress is tracked in `rds/state.json` and is pause-and-resume safe.
+The skill is implemented as a 6-phase state machine. Progress is tracked in `rds/analysis/<session_name>/state.json` and is pause-and-resume safe.
 
 | Phase | Name | Main deliverables |
 |-------|------|------------|
-| 0 | Setup & Goal | `rds/goal.json` |
+| 0 | Setup & Goal | `rds/analysis/<session_name>/goal.json` |
 | 1 | Recon & Template | `recon-report.md`, template selection result |
 | 2 | Plan & WBS | `inventory.json`, `wbs.json` |
 | 3 | Investigate | `drafts/*.md` (per-chapter drafts) |
@@ -140,13 +140,14 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - Ask the user "Is this the right root directory for the target codebase?". If not, obtain the correct path.
 
 2. **Initialize the state directory**
-   - Create the `rds/` directory.
-   - **Bundle availability**: In pi, the skill bundle (`scripts/`, `references/`, `templates/`, `agents/`) is already accessible at relative paths from this SKILL.md. No staging step is needed — just ensure `rds/skill/` exists as a marker directory:
+   - Ask the user for a short English name for this analysis session (e.g. `myapp-backend`, `payment-service`). If not provided, generate one from the project directory name.
+   - Create the isolated session directory: `rds/analysis/<session_name>/`.
+   - **Bundle availability**: In pi, the skill bundle (`scripts/`, `references/`, `templates/`, `agents/`) is already accessible at relative paths from this SKILL.md. No staging step is needed — just ensure `rds/analysis/<session_name>/skill/` exists as a marker directory:
      ```bash
-     mkdir -p rds/skill
+     mkdir -p rds/analysis/<session_name>/skill
      ```
-     All helper invocations use relative paths from the skill directory (e.g. `python scripts/source-map.py --target <root>` for source-map, `python scripts/coverage-check.py` for verification). See each script's section for exact commands.
-   - If an existing `rds/state.json` is found, branch to resume mode (see "State management and resume" below). In pi the bundle is always accessible at relative paths — no re-staging needed.
+     All helper invocations use relative paths from the skill directory (e.g. `python scripts/source-map.py --target <root> --output rds/analysis/<session_name>/source-map.json` for source-map, `python scripts/coverage-check.py --pi-rsg-dir rds/analysis/<session_name>` for verification). See each script's section for exact commands.
+   - If an existing `rds/analysis/<session_name>/state.json` is found, branch to resume mode (see "State management and resume" below). In pi the bundle is always accessible at relative paths — no re-staging needed.
 
 3. **Output language selection**
 
@@ -164,7 +165,7 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
      2. `userUiLanguage` hint passed from the parent harness's initial prompt
      3. Hard default `"ru"` (lowest)
    - **All natural-language output from Step 4 onward** — `AskUserQuestion` bodies and choices, confirmation summaries, chapter titles, generated spec body, `questions.json` body text, etc. — is rendered in the language selected here (see Design Principle #11).
-   - **Resume mode**: when `rds/goal.json` already exists, read the persisted `output_language` and skip this step entirely.
+   - **Resume mode**: when `rds/analysis/<session_name>/goal.json` already exists, read the persisted `output_language` and skip this step entirely.
 
 4. **Run the 5 goal-definition questions**
    - Use `AskUserQuestion` to ask the following 6 questions in sequence. **Question bodies, choice labels, and free-form-input placeholders are all rendered in the `output_language` selected in Step 3.** The choice labels below are shown when `output_language == "ru"`; the agent dynamically translates them when `output_language == "en"` (enum values such as `primary_reader: "maintenance_developer"` stay as language-independent English enums in `goal.json`). Each question is choice-based first with a free-form field as a fallback.
@@ -233,7 +234,7 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid / Sources Read minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
 
 6. **Persist to `goal.json`**
-   - Save the language choice from Step 3, the 7 answers from Step 4 (Q1–Q7), and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `rds/`. Schema:
+   - Save the language choice from Step 3, the 7 answers from Step 4 (Q1–Q7), and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `rds/analysis/<session_name>/`. Schema:
 
    ```json
    {
@@ -306,13 +307,13 @@ Get a rough mental model of the codebase via a shallow reconnaissance, then pick
    - See "Question Bank operation" below for the structure used at registration.
 
 5. **🆕 depth-mode decision (scale-based)**
-   - Record the **total file count** observed during reconnaissance at the top of `recon-report.md`. Persist as `total_files` in `rds/state.json`.
+   - Record the **total file count** observed during reconnaissance at the top of `recon-report.md`. Persist as `total_files` in `rds/analysis/<session_name>/state.json`.
    - **If file count > 200**, ask the user with `AskUserQuestion` to choose a **depth mode**:
      - `comprehensive`: classic behaviour. All chapters detailed, full MECE, full REFs. **Recommended only when exhaustive coverage is required (audit, regulatory).** Takes hours to days.
      - `outline` (**recommended default**): each level's entities are **listed exhaustively in tables** + Mermaid diagrams + a "deep-dive candidates" list at the end of each table. Details are produced on-demand in dialogue after Phase 6. **Best for typical use.**
      - `interactive`: same flow as outline, plus continued deep-dive acceptance after Phase 6 completes. **Use when a team will continue referencing the spec.**
    - **If file count ≤ 200**, default to `comprehensive` automatically (no question). The user may still override.
-   - Persist the result to `rds/goal.json` as `depth_mode: "comprehensive" | "outline" | "interactive"`. Phases 2 / 3 / 4 / 6 branch on this value.
+   - Persist the result to `rds/analysis/<session_name>/goal.json` as `depth_mode: "comprehensive" | "outline" | "interactive"`. Phases 2 / 3 / 4 / 6 branch on this value.
    - Question wording example:
      > The target codebase is large (N files / X lines). Choose a depth mode for the spec.
      > (Overview-only → deep-dive items of interest later, in practice, is recommended.)
@@ -464,11 +465,11 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
 
    **STEP A (required)**: Run `scripts/source_map_v2` to extract source units automatically:
    ```bash
-   python scripts/source-map.py --target <target root> --output rds/source-map.json
+   python scripts/source-map.py --target <target root> --output rds/analysis/<session_name>/source-map.json
    ```
    This wrapper resolves its own location and works from **any working directory** — no `cd` or path guessing needed.
 
-   > Alternative (if wrapper is unavailable): `cd skills/pi-rsg && python -m scripts.source_map_v2 --target <target root> --output rds/source-map.json`
+   > Alternative (if wrapper is unavailable): `cd skills/pi-rsg && python -m scripts.source_map_v2 --target <target root> --output rds/analysis/<session_name>/source-map.json`
 
    This is a tree-sitter-based extractor (schema 0.2.0) that maps every unit onto the five universal tables (Modules / Entities / Actions / Data / Dependencies) with role typing (`endpoint`, `model`, `schema`, `component`, `job`, etc.). It supports 9 languages: Python, TypeScript/JavaScript, Ruby/Rails, PHP, Java, C#, Go, SQL, COBOL.
 
@@ -518,7 +519,7 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
 
 5. **🆕 Adjust the chapter structure based on depth mode (the mode confirmed in Phase 1.5)**
 
-   Branch the WBS chapter structure on `rds/goal.json`'s `depth_mode`:
+   Branch the WBS chapter structure on `rds/analysis/<session_name>/goal.json`'s `depth_mode`:
 
    **(a) `comprehensive` (classic / audit use)**
    - Distribute `assigned_inventory_ids` across the 13-chapter template outline.
@@ -566,7 +567,7 @@ Based on the WBS, **read the real source code first, then write each chapter**.
 
 ### 🆕 depth-mode branching (important)
 
-`rds/goal.json`'s `depth_mode` **changes Phase 3's overall behaviour**:
+`rds/analysis/<session_name>/goal.json`'s `depth_mode` **changes Phase 3's overall behaviour**:
 
 | depth_mode | Main behaviour | Chapter body shape |
 |---|---|---|
@@ -706,7 +707,7 @@ Corresponding real sources (Read these with the Read tool):
 - app/models/role.rb
 - db/schema.rb (relevant portions)
 
-Draft output path: rds/drafts/05-data-model.md
+Draft output path: rds/analysis/<session_name>/drafts/05-data-model.md
 
 Quality bar:
 - Body ≥ 200 lines
@@ -716,7 +717,7 @@ Quality bar:
 - ≥ 5 files under ## Sources Read
 
 When done, return **only** the chapter's key points + a list of detail questions raised.
-Do NOT paste the chapter body into the return value — it is already saved to `rds/drafts/NN-slug.md`.
+Do NOT paste the chapter body into the return value — it is already saved to `rds/analysis/<session_name>/drafts/NN-slug.md`.
 The detail questions are material for the main agent to append into `questions.json`.
 
 NOTE: If goal.output_language == "ru", render the chapter body, headings,
@@ -733,7 +734,7 @@ in English regardless of output_language.
 
 **Important constraints**:
 
-Read `rds/goal.json`'s `phase3_subagent_parallelism` to determine the dispatch strategy. This value was set in Phase 0 (default: `1`).
+Read `rds/analysis/<session_name>/goal.json`'s `phase3_subagent_parallelism` to determine the dispatch strategy. This value was set in Phase 0 (default: `1`).
 
 #### Mode A: Sequential (`phase3_subagent_parallelism == 1`)
 
@@ -901,7 +902,7 @@ Run inventory cross-check, per-chapter quality metrics, MECE check, and consiste
    - **Check 12 — User-custom deliverables**: every filename in `goal.json.user_custom_deliverables` must exist in the target directory (`drafts/` in Phase 4, `final/` in Phase 6) AND have a non-empty body (≥ 10 non-blank lines outside code fences).
 
 3. **Per-chapter verification via sub-agents (isolated context)**
-   - Read `rds/goal.json`'s `phase4_parallelism` to determine the dispatch strategy (default: `1`).
+   - Read `rds/analysis/<session_name>/goal.json`'s `phase4_parallelism` to determine the dispatch strategy (default: `1`).
    - For each chapter in `wbs.json.chapters[]` (standard + user_custom), dispatch a `chapter-verifier` sub-agent in an isolated context.
    - **Mode A: Sequential (`phase4_parallelism == 1`)**:
      ```
@@ -929,7 +930,7 @@ Run inventory cross-check, per-chapter quality metrics, MECE check, and consiste
    ```
    subagent(
      prompt="""
-You are the chapter-verifier handling rds/drafts/05-data-model.md (kind: standard).
+You are the chapter-verifier handling rds/analysis/<session_name>/drafts/05-data-model.md (kind: standard).
 
 Verify this chapter against the quality gates:
 - Body lines (excluding code blocks and comments): ≥ 200
@@ -972,8 +973,8 @@ NOTE: Do NOT modify the file. You are read-only. Return the verification report 
    - Merge only the "obviously identical"; flag the "similar but subtly different" as groups for Phase 5 confirmation.
 
 7. **Save the verification report**
-   - Save `coverage-check.py --output-format json` output to `rds/coverage-report.json`.
-   - Save a human-readable version to `rds/coverage-report.md`.
+   - Save `coverage-check.py --output-format json` output to `rds/analysis/<session_name>/coverage-report.json`.
+   - Save a human-readable version to `rds/analysis/<session_name>/coverage-report.md`.
 
 8. **Phase 4 complete**
    - Once every chapter passes (or hits the loopback limit), update `state.json` and proceed to Phase 5.
@@ -1101,20 +1102,20 @@ The Phase 6 intent-vs-delivery audit re-verifies these constraints; failure rout
 ## Phase 6: Deliver
 
 ### Purpose
-Output the final spec as Markdown under `rds/final/`.
+Output the final spec as Markdown under `rds/analysis/<session_name>/final/`.
 
 ### Procedure
 
 File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d)-[a-z0-9-]+\.md$`; reserved files: `00-metadata.md` / `99-unresolved.md` / `traceability.md`). Phase 6 does not create new names; it fills in the skeleton files generated in Phase 2.
 
 1. **Merge chapter drafts**
-   - Copy every chapter in `wbs.json.chapters[]` — standard, reserved, AND user_custom — from `drafts/` to `rds/final/` in the template-defined order (user-custom chapters typically appear at the end unless the user's intent suggests otherwise).
+   - Copy every chapter in `wbs.json.chapters[]` — standard, reserved, AND user_custom — from `drafts/` to `rds/analysis/<session_name>/final/` in the template-defined order (user-custom chapters typically appear at the end unless the user's intent suggests otherwise).
    - Do NOT change the file names (use the names finalised in Phase 2).
    - Do NOT silently skip a chapter just because its draft body is short — that is a Phase 3 / Phase 4 failure and must be surfaced, not papered over.
    - Strip the meta comment at the top of each chapter file.
 
 2. **Clean up draft artifacts**
-   - After all chapters have been successfully copied to `rds/final/`, **remove the entire `drafts/` directory** (`rm -rf rds/drafts`).
+   - After all chapters have been successfully copied to `rds/analysis/<session_name>/final/`, **remove the entire `drafts/` directory** (`rm -rf rds/analysis/<session_name>/drafts`).
    - This is mandatory: `drafts/` contains intermediate work products that are now superseded by the final deliverable. Leaving stale drafts causes confusion on subsequent runs (the agent may pick up old files from `scan_chapter_files()`).
    - If the directory does not exist (e.g. a resumed session where it was already cleaned), this step is a no-op.
 
@@ -1141,7 +1142,7 @@ File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d
 
 6. **Final deliverable layout**
    ```
-   rds/final/
+   rds/analysis/<session_name>/final/
    ├── 00-metadata.md       # metadata (created Phase 2, filled Phase 6)
    ├── 01-overview.md       # Chapter 1: Overview
    ├── 02-architecture.md   # Chapter 2: Architecture
@@ -1155,7 +1156,7 @@ File names follow the ASCII slug convention finalised in Phase 2 (`^(0\d|[1-9]\d
 
 7. **Intent-vs-delivery audit (mandatory; the final gate before completion)**
    - Re-run `coverage-check.py` against `--target-dir-for-required final`. Exit code must be 0.
-   - Verify that every filename listed in `goal.json.user_custom_deliverables` exists at `rds/final/{name}` AND has a non-empty body (≥ 10 non-blank lines outside code fences). Demoting any of these to `99-unresolved.md` or recording them as "for next time" in `state.json` is forbidden.
+   - Verify that every filename listed in `goal.json.user_custom_deliverables` exists at `rds/analysis/<session_name>/final/{name}` AND has a non-empty body (≥ 10 non-blank lines outside code fences). Demoting any of these to `99-unresolved.md` or recording them as "for next time" in `state.json` is forbidden.
    - Verify that the three reserved files (`00-metadata.md`, `99-unresolved.md`, `traceability.md`) all exist under `final/`.
    - **Verify state.json invariants**:
      - `current_phase` must equal `6` (and only `6`) when Phase 6 completes. Earlier values such as `2` while `phase_6.status: "complete"` are inconsistent and indicate the agent advanced phases out of order — fail Phase 6 in that case.
@@ -1222,7 +1223,7 @@ Once the deep-dive target is fixed:
    - Target entity / candidate ID and overview
    - List of related real source files
    - "Write 1 chapter at **comprehensive-mode-equivalent quality**" (≥ 200 lines, ≥ 10 REFs, ≥ 1 Mermaid, ≥ 5 Sources Read)
-   - Output path: `rds/drafts/deep/D-NNN-{slug}.md` or `M-NNN-{slug}.md`
+   - Output path: `rds/analysis/<session_name>/drafts/deep/D-NNN-{slug}.md` or `M-NNN-{slug}.md`
 3. Display the key findings returned by the sub-agent in the main thread.
 4. **Update traceability.md** (append the deep-dive chapter).
 5. **Update the relevant row in the original Layer 1 chapter**: bump the confidence from 🟡/🔴 → 🟢, add a "see deep-dive `D-001`" link.
@@ -1233,9 +1234,10 @@ Once the deep-dive target is fixed:
 When the user sends a completion word ("end", "complete", "OK, done", etc.):
 
 1. Update `state.json` with `phase_6_5_completed_at`.
-2. Re-generate `final/` (consolidating the deep-dive chapters).
-3. Update final/traceability.md to the final version.
-4. Close the env with a thank-you message.
+2. Re-generate `final/` (consolidating the deep-dive chapters from `drafts/deep/`).
+3. **Clean up**: remove the entire `drafts/` directory (`rm -rf rds/analysis/<session_name>/drafts`) — deep-dive chapters are now in `final/`, stale drafts must not remain.
+4. Update final/traceability.md to the final version.
+5. Close the env with a thank-you message.
 
 ### Phase-specific cautions
 
@@ -1250,7 +1252,7 @@ When the user sends a completion word ("end", "complete", "OK, done", etc.):
 
 ### Data structure
 
-Each entry in `rds/questions.json` has the following fields:
+Each entry in `rds/analysis/<session_name>/questions.json` has the following fields:
 
 ```json
 {
@@ -1391,7 +1393,7 @@ else:
 
 ### Resume behaviour
 
-When the skill detects an existing `rds/state.json` at startup, present the situation in the resume message and confirm the user's intent. If `rds/goal.json` is readable, the resume message is rendered in its `output_language`. Only when `goal.json` itself is missing (so the language is unknown) the bilingual format (Russian first, then English) is used — identical in shape to Phase 0 Step 3 — to prompt the language selection again.
+When the skill detects an existing `rds/analysis/<session_name>/state.json` at startup, present the situation in the resume message and confirm the user's intent. If `rds/analysis/<session_name>/goal.json` is readable, the resume message is rendered in its `output_language`. Only when `goal.json` itself is missing (so the language is unknown) the bilingual format (Russian first, then English) is used — identical in shape to Phase 0 Step 3 — to prompt the language selection again.
 
 **Resume-message template (Russian version, when `output_language: "ru"`)**:
 
@@ -1406,7 +1408,7 @@ When the skill detects an existing `rds/state.json` at startup, present the situ
 Что вы хотите сделать?
 (A) Продолжить с места остановки (завершить оставшиеся задачи Phase 3)
 (B) Откатить на указанную фазу (возобновить с указанной фазы)
-(C) Полный сброс (удалить rds/ и начать с Phase 0)
+(C) Полный сброс (удалить rds/analysis/<session_name>/ и начать с Phase 0)
 (D) Показать подробное состояние, затем принять решение
 ```
 
@@ -1423,7 +1425,7 @@ A previous pi-rsg session is in progress. The current state is:
 What would you like to do?
 (A) Resume from where it stopped (finish remaining Phase 3 tasks)
 (B) Roll a phase back (resume from a specified phase)
-(C) Full reset (delete rds/ and start from Phase 0)
+(C) Full reset (delete rds/analysis/<session_name>/ and start from Phase 0)
 (D) Show detailed state, then decide
 ```
 
@@ -1492,28 +1494,34 @@ skills/pi-rsg/
 
 ### Working directory on the consumer project
 
+Each analysis session is fully isolated under `rds/analysis/<session_name>/`:
+
 ```
 rds/
-├── state.json          (current phase and progress)
-├── goal.json           (Phase 0 answers)
-├── recon-report.md     (Phase 1 reconnaissance output)
-├── inventory.json      (all inventory items)
-├── wbs.json            (Phase 2 work decomposition)
-├── questions.json      (Question Bank)
-├── drafts/             (per-chapter draft Markdown; file names follow the ASCII slug convention)
-│   ├── 00-metadata.md      # created empty in Phase 2, filled in Phase 6
-│   ├── 01-overview.md
-│   ├── 02-architecture.md
-│   ├── ...
-│   ├── 99-unresolved.md    # created empty in Phase 2, filled in Phase 6
-│   └── traceability.md     # created empty in Phase 2, filled in Phase 6
-└── final/              (final deliverable; same file names as drafts)
-    ├── 00-metadata.md
-    ├── 01-overview.md
-    ├── ...
-    ├── 99-unresolved.md
-    ├── traceability.md
-    └── README.md
+└── analysis/
+    └── <session_name>/
+        ├── state.json          (current phase and progress)
+        ├── goal.json           (Phase 0 answers)
+        ├── recon-report.md     (Phase 1 reconnaissance output)
+        ├── inventory.json      (all inventory items)
+        ├── wbs.json            (Phase 2 work decomposition)
+        ├── questions.json      (Question Bank)
+        ├── source-map.json     (tree-sitter source map)
+        ├── coverage-report.*   (Phase 4 verification report)
+        ├── drafts/             (per-chapter draft Markdown; file names follow the ASCII slug convention)
+        │   ├── 00-metadata.md      # created empty in Phase 2, filled in Phase 6
+        │   ├── 01-overview.md
+        │   ├── 02-architecture.md
+        │   ├── ...
+        │   ├── 99-unresolved.md    # created empty in Phase 2, filled in Phase 6
+        │   └── traceability.md     # created empty in Phase 2, filled in Phase 6
+        └── final/              (final deliverable; same file names as drafts)
+            ├── 00-metadata.md
+            ├── 01-overview.md
+            ├── ...
+            ├── 99-unresolved.md
+            ├── traceability.md
+            └── README.md
 ```
 
 ---
@@ -1531,28 +1539,6 @@ Do not aim for a perfect spec on the first pass. Phase 1 → overall picture; Ph
 
 ### Guarantee resumability
 For long-running analysis sessions, record progress / established facts / unresolved questions on the file system so the work can be paused and resumed at any time (inheriting the `.reversa/state.json` idea).
-
-### Session hygiene — archive before new runs
-After Phase 6 (Deliver) completes, **always run `archive-session.py`** before starting a new analysis session. This prevents stale artifacts from previous runs from contaminating the new session.
-
-```bash
-# Automatic naming (project-name-YYYYMMDD-HHMMSS)
-python scripts/archive-session.py
-
-# Explicit session name
-python scripts/archive-session.py --session-name my-project-v1
-
-# Preview only
-python scripts/archive-session.py --dry-run
-```
-
-What the script does:
-1. Copies all artifacts from `rds/` (JSON files, MD reports, `drafts/`, `final/`) into `rds/archive/<session-name>/`
-2. Writes a `metadata.json` with session info and timestamp
-3. Cleans `rds/`: removes `state.json`, `questions.json`, `coverage-report.*`, and all files in `drafts/` and `final/`
-4. Keeps reference files: `goal.json`, `recon-report.md`, `inventory.json`, `wbs.json`, `source-map.json`
-
-**User command**: when the user says "archive this session", "save current state", or "cleanup for next run" — execute `python scripts/archive-session.py` (or with explicit name if user provides one). This is the **only** way to clean `rds/` between sessions.
 
 ---
 

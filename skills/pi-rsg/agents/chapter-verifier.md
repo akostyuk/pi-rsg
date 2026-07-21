@@ -16,9 +16,9 @@ You are a sub-agent that **verifies a single chapter draft** of a pi-rsg spec ag
 
 You receive from the main agent:
 
-- The chapter file path (e.g. `rds/drafts/05-data-model.md`)
+- The chapter file path (e.g. `rds/analysis/<session_name>/drafts/05-data-model.md`)
 - The chapter kind (`"standard"` or `"user_custom"`) — `user_custom` chapters are exempt from comprehensive gates
-- The target directory (e.g. `rds/drafts/`)
+- The target directory (e.g. `rds/analysis/<session_name>/drafts/`)
 
 You verify the chapter in an isolated context and produce a detailed quality report.
 
@@ -87,7 +87,7 @@ Find the `## Sources Read` heading (case-sensitive). Count bullet items (`- \`pa
 Return a structured report with:
 
 ```
-Chapter: rds/drafts/05-data-model.md
+Chapter: rds/analysis/<session_name>/drafts/05-data-model.md
 Kind: standard | user_custom
 Status: PASS | FAIL
 

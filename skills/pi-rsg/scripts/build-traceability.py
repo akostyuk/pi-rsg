@@ -2,7 +2,7 @@
 """
 pi-rsg build-traceability.py
 
-Reads `rds/trace.json` and auto-generates a human-readable
+Reads `rds/analysis/<session_name>/trace.json` and auto-generates a human-readable
 `final/traceability.md` (or `drafts/traceability.md`).
 
 Produces:
@@ -14,7 +14,7 @@ so the user can see everything in a single Markdown file. Never write it
 by hand.
 
 Usage:
-    python build-traceability.py --pi-rsg-dir rds --output-dir final
+    python build-traceability.py --pi-rsg-dir rds/analysis/<session_name> --output-dir final
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from pathlib import Path
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="pi-rsg traceability.md generator")
-    parser.add_argument("--pi-rsg-dir", default="rds")
+    parser.add_argument("--pi-rsg-dir", default="rds/analysis/default")
     parser.add_argument(
         "--output-dir",
         default="final",

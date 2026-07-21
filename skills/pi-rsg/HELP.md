@@ -2,16 +2,17 @@
 
 ## What it does
 
-Generates maintenance specifications from a codebase (code → spec). Runs in 6 phases:
+Generates maintenance specifications from a codebase (code → spec). Runs in 6 phases.
+Each analysis session is fully isolated under `rds/analysis/<session_name>/`:
 
 ```
-Phase 0: Setup & Goal       → rds/goal.json
+Phase 0: Setup & Goal       → rds/analysis/<session_name>/goal.json
 Phase 1: Recon & Template   → recon-report.md
 Phase 2: Plan & WBS         → inventory.json, wbs.json
 Phase 3: Investigate        → drafts/*.md (chapter drafts)
 Phase 4: Verify             → coverage-check.py gate
 Phase 5: Refine via Dialogue → questions.json resolved
-Phase 6: Deliver            → rds/final/*.md (final specification)
+Phase 6: Deliver            → rds/analysis/<session_name>/final/*.md (final specification)
 ```
 
 ## Quick Start
@@ -21,12 +22,8 @@ Phase 6: Deliver            → rds/final/*.md (final specification)
 #    Or from CLI: pi --skill skills/pi-rsg
 
 # 2. Scripts (work from any directory):
-python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/source-map.json
-python skills/pi-rsg/scripts/coverage-check.py --target-dir rds/final
-python skills/pi-rsg/scripts/archive-session.py
-
-# 3. Archive session and clean up for a new run:
-python skills/pi-rsg/scripts/archive-session.py --session-name my-project-v1
+python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/analysis/<session_name>/source-map.json
+python skills/pi-rsg/scripts/coverage-check.py --pi-rsg-dir rds/analysis/<session_name>
 ```
 
 ## Project Architecture
@@ -52,7 +49,6 @@ skills/pi-rsg/
     ├── source-map.py          ← wrapper for source_map_v2 (any cwd)
     ├── source_map_v2/         ← tree-sitter extractor (9 languages)
     ├── coverage-check.py      ← quality checks (13 checks)
-    ├── archive-session.py     ← session archiving + cleanup
     ├── build-trace.py         ← [REF:] → trace.json
     └── build-traceability.py  ← trace.json → traceability.md
 ```
@@ -89,46 +85,40 @@ skills/pi-rsg/
 | `ModuleNotFoundError` when running source_map_v2 | Use `scripts/source-map.py` — works from any cwd |
 | ASCII diagrams instead of Mermaid | See `SKILL.md` § "Mermaid format requirement" — ASCII is forbidden |
 | Invalid Mermaid syntax | See `SKILL.md` § "Mermaid self-validation" — 6 checks before saving |
-| Stale artifacts from previous session | `python scripts/archive-session.py` — archives and cleans `rds/` |
 | Agent cannot find scripts | Scripts are in `skills/pi-rsg/scripts/` — use absolute paths or `source-map.py` |
 
 ## `rds/` Structure After Run
 
+Each analysis session is fully isolated:
+
 ```
 rds/
-├── goal.json           # session goals (Phase 0)
-├── state.json          # progress (pause/resume safe)
-├── inventory.json      # code units inventory
-├── wbs.json            # work breakdown structure
-├── questions.json      # question bank (Phase 5)
-├── source-map.json     # source map (tree-sitter)
-├── recon-report.md     # codebase overview (Phase 1)
-├── drafts/             # chapter drafts (Phase 3)
-│   ├── 01-overview.md
-│   ├── 02-architecture.md
-│   └── ...
-└── final/              # final specification (Phase 6)
-    ├── 01-overview.md
-    └── ...
+└── analysis/
+    └── <session_name>/
+        ├── goal.json           # session goals (Phase 0)
+        ├── state.json          # progress (pause/resume safe)
+        ├── inventory.json      # code units inventory
+        ├── wbs.json            # work breakdown structure
+        ├── questions.json      # question bank (Phase 5)
+        ├── source-map.json     # source map (tree-sitter)
+        ├── recon-report.md     # codebase overview (Phase 1)
+        ├── drafts/             # chapter drafts (Phase 3)
+        │   ├── 01-overview.md
+        │   ├── 02-architecture.md
+        │   └── ...
+        └── final/              # final specification (Phase 6)
+            ├── 01-overview.md
+            └── ...
 ```
 
 ## Useful Commands
 
 ```bash
-# Archive session and clean rds/ for a new run
-python skills/pi-rsg/scripts/archive-session.py
-
 # Check quality of the final specification
-python skills/pi-rsg/scripts/coverage-check.py --target-dir rds/final
+python skills/pi-rsg/scripts/coverage-check.py --pi-rsg-dir rds/analysis/<session_name>
 
 # Get the source map
-python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/source-map.json
-
-# Preview only (dry-run)
-python skills/pi-rsg/scripts/archive-session.py --dry-run
-
-# Explicit session name
-python skills/pi-rsg/scripts/archive-session.py --session-name my-project-v1
+python skills/pi-rsg/scripts/source-map.py --target ./src --output rds/analysis/<session_name>/source-map.json
 ```
 
 ## Dependencies

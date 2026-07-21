@@ -5,24 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] — 2026-07-18
 
 ### Added
-- **Phase 6 step 2 — Clean up draft artifacts**: after copying chapters to `rds/final/`, the entire `drafts/` directory is removed. Prevents stale intermediate files from contaminating subsequent runs.
+- **Session name prompt** in Phase 0: user provides a short English name for the analysis (e.g. `myapp-backend`, `payment-service`).
+
+### Changed
+- **Session isolation**: all artifacts now live under `rds/analysis/<session_name>/` instead of directly in `rds/`. Each analysis session is fully isolated — no stale artifacts, no archive needed.
+- **Phase 0 Step 2**: agent now asks the user for a short English session name (or generates one from project directory), then creates `rds/analysis/<session_name>/` as the working directory.
+- All path references in `SKILL.md`, scripts, and documentation updated to use `rds/analysis/<session_name>/`.
+
+### Removed
+- **`archive-session.py`**: no longer needed. Session isolation makes archiving obsolete — each analysis is already in its own directory.
+
+---
+
+## [Unreleased]
 
 ### Fixed
 - `coverage-check.py`: fix `NameError: name 'drafts' is not defined` in `build_report()` — the Mermaid validation call referenced a non-existent variable; renamed to `chapters` (the actual dict of scanned chapter files).
-
-### Changed
-- **Artifact directory renamed**: `.pi-rsg/` → `rds/` (Reverse-Designed Specs). All scripts, templates, agent prompts, and documentation updated. `rds/` is no longer a hidden directory — visible in project root alongside `.gitignore`. Archive path: `rds/archive/<session-name>/`.
-
-### Added
-- `scripts/source-map.py` wrapper — resolves its own location at runtime so `source_map_v2` works from **any working directory**. Agent no longer needs to `cd` or guess paths.
-- Mermaid format requirement — ASCII-art diagrams explicitly forbidden; all diagrams MUST be ` ```mermaid ` fenced blocks.
-- Mermaid self-validation — agent must verify diagram syntax before saving (no `state X --> Y:` anti-pattern, no bare `graph` without direction, ER cardinality required).
-- `coverage-check.py` Mermaid syntax validation — new check #13: structural validation of every ` ```mermaid ` block (unclosed fences, invalid syntax patterns).
-- `archive-session.py` — packs `rds/` artifacts into `rds/archive/<session-name>/` and cleans stale state for the next run. Archives both `drafts/` and `final/`, then removes all files from both directories.
-- `HELP.md` — concise reference guide for quick start, common commands, and troubleshooting.
 
 ## [0.2.0] — 2026-07-18
 

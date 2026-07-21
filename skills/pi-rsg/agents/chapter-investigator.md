@@ -17,7 +17,7 @@ You receive from the main agent:
 
 - The chapter number and title (e.g. `Chapter 5: Data Model`)
 - The assigned `inventory_ids` (e.g. `INV-012, INV-013, ...`)
-- The draft output path (e.g. `rds/drafts/05-data-model.md`)
+- The draft output path (e.g. `rds/analysis/<session_name>/drafts/05-data-model.md`)
 - **Optional: Verification feedback** (if this is a re-investigation after Phase 4 loopback)
 
 You investigate deeply in an isolated context and produce a draft that satisfies the quality gates.
@@ -167,7 +167,7 @@ The main agent reads this and appends the questions to `questions.json`.
 Your return-value text MUST include the following:
 
 ```
-Chapter NN written to rds/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
+Chapter NN written to rds/analysis/<session_name>/drafts/NN-slug.md (XXX lines, NN refs, N code blocks, N mermaid)
 
 Key findings:
 - ...

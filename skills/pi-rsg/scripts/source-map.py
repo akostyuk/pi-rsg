@@ -2,7 +2,7 @@
 """Wrapper for source_map_v2 that works from any working directory.
 
 Usage:
-    python scripts/source-map.py --target <root> --output rds/source-map.json
+    python scripts/source-map.py --target <root> --output rds/analysis/<session_name>/source-map.json
 
 This script resolves its own location to find the source_map_v2 package,
 so it works regardless of the current working directory.

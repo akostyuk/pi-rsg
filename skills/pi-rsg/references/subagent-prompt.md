@@ -337,7 +337,7 @@ In Phase 4, the main agent dispatches `chapter-verifier` sub-agents to verify ea
 The verifier prompt is simpler than the investigator prompt — it only needs:
 
 1. **Role**: "You are a chapter verifier. Read-only check."
-2. **Chapter path**: e.g. `rds/drafts/05-data-model.md`
+2. **Chapter path**: e.g. `rds/analysis/<session_name>/drafts/05-data-model.md`
 3. **Chapter kind**: `"standard"` or `"user_custom"`
 4. **Quality gates**: the metrics to check
 5. **Output format**: structured report with PASS/FAIL + feedback
@@ -438,7 +438,7 @@ Corresponding real sources (Read these with the Read tool):
 **IMPORTANT**: You must read ADDITIONAL source files beyond those listed above.
 Check app/models/concerns/, lib/, config/ for related logic.
 
-Draft output path: rds/drafts/05-data-model.md (overwrite existing)
+Draft output path: rds/analysis/<session_name>/drafts/05-data-model.md (overwrite existing)
 
 Quality bar (MUST meet all):
 - Body ≥ 200 lines
@@ -448,5 +448,5 @@ Quality bar (MUST meet all):
 - ≥ 5 files under ## Sources Read
 
 When done, return the chapter's key points + a list of detail questions raised.
-Do NOT paste the chapter body into the return value — it is already saved to `rds/drafts/NN-slug.md`.
+Do NOT paste the chapter body into the return value — it is already saved to `rds/analysis/<session_name>/drafts/NN-slug.md`.
 ```

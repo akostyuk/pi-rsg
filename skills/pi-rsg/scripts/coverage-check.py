@@ -20,7 +20,7 @@ Checks performed:
 8.  Total `questions.json` count (`--min-questions`)
 9.  Upper bound on the `status: open` ratio after Phase 5 (`--max-open-ratio`)
 10. inventory.covered_by fill rate (`--min-covered-by-fill`)
-11. MECE check (consults `rds/trace.json`, `--min-mece-coverage`)
+11. MECE check (consults `rds/analysis/<session_name>/trace.json`, `--min-mece-coverage`)
 12. **User-custom deliverables**: every filename in
     `goal.json.user_custom_deliverables` must exist in the target directory
     AND have a non-empty body (>= 10 non-blank lines outside code fences).
@@ -39,7 +39,7 @@ are overridable via CLI flags.
 
 Usage:
     python coverage-check.py \\
-      --pi-rsg-dir rds \ \
+      --pi-rsg-dir rds/analysis/<session_name> \
       --target-dir-for-required final \\
       --min-refs-per-chapter 10 \\
       --min-lines-per-chapter 200 \\
@@ -997,7 +997,7 @@ def render_json(report: CoverageReport) -> str:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="pi-rsg Phase 4 verification (v2)")
-    p.add_argument("--pi-rsg-dir", type=Path, default=Path.cwd() / "rds")
+    p.add_argument("--pi-rsg-dir", type=Path, default=Path.cwd() / "rds" / "analysis" / "default")
     p.add_argument("--target-dir-for-required", default="final", choices=["drafts", "final"])
     p.add_argument("--output-format", choices=["text", "json"], default="text")
 
