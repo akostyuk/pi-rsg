@@ -142,12 +142,8 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
 2. **Initialize the state directory**
    - Ask the user for a short English name for this analysis session (e.g. `myapp-backend`, `payment-service`). If not provided, generate one from the project directory name.
    - Create the isolated session directory: `rds/analysis/<session_name>/`.
-   - **Bundle availability**: In pi, the skill bundle (`scripts/`, `references/`, `templates/`, `agents/`) is already accessible at relative paths from this SKILL.md. No staging step is needed — just ensure `rds/analysis/<session_name>/skill/` exists as a marker directory:
-     ```bash
-     mkdir -p rds/analysis/<session_name>/skill
-     ```
-     All helper invocations use relative paths from the skill directory (e.g. `python scripts/source-map.py --target <root> --output rds/analysis/<session_name>/source-map.json` for source-map, `python scripts/coverage-check.py --pi-rsg-dir rds/analysis/<session_name>` for verification). See each script's section for exact commands.
-   - If an existing `rds/analysis/<session_name>/state.json` is found, branch to resume mode (see "State management and resume" below). In pi the bundle is always accessible at relative paths — no re-staging needed.
+   - All helper invocations use relative paths from the skill directory (e.g. `python scripts/source-map.py --target <root> --output rds/analysis/<session_name>/source-map.json` for source-map, `python scripts/coverage-check.py --pi-rsg-dir rds/analysis/<session_name>` for verification). See each script's section for exact commands.
+   - If an existing `rds/analysis/<session_name>/state.json` is found, branch to resume mode (see "State management and resume" below).
 
 3. **Output language selection**
 

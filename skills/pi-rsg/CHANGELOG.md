@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **`rds/analysis/<session_name>/skill/` marker directory**: Phase 0 Step 2 no longer creates an empty `skill/` subdirectory. This directory was a dead marker — never read or written by any script, agent instruction, or output artifact. Leftover from a pre-pi staging design.
+
 ### Added
 - **Regex-based Python extractor** (`python_regex_ext.py`): zero external dependencies — works without `tree-sitter-python`. Detects functions, classes, FastAPI/Flask endpoints, Pydantic schemas, Django models, Celery tasks. Falls back to file-level units only when no Python extractor is available.
 
