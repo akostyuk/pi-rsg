@@ -39,17 +39,40 @@ You investigate deeply in an isolated context and produce a draft that satisfies
 
 ---
 
-## Mandatory output requirements (machine-verified by the main agent in Phase 4)
+## Quality gates (dynamic, focus-aware)
 
-| Item | Minimum |
-|------|---------|
-| Body lines (excluding code blocks and comments) | **≥ 200 lines** |
-| `[REF: path:Lstart-Lend]` citations | **≥ 10**, with precise line ranges |
-| fenced code blocks | **≥ 3** |
-| Mermaid diagrams (` ```mermaid `) | **≥ 1** |
-| `## Sources Read` section at the top of the chapter | **≥ 5** viewed source files listed |
+**Перед началом работы:** прочитайте `goal.json` и `inventory.json`:
+1. Есть ли `goal.json.focus.path` (не пустой и не `"."`)?
+2. Содержат ли `assigned_inventory_ids` единицы с `is_focus: true`? (это **focus-глава**)
+3. Или содержат ли единицы с `has_focus_dependency: true`? (это **cross-reference-глава**)
 
-Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase 4 loopback in which the main agent re-invokes you.
+### Пороги для focus-глав (содержит units с `is_focus: true`)
+
+Применяйте пороги из `goal.json.focus.depth_mode`:
+
+| `focus.depth_mode` | Body lines | `[REF:]` | Code blocks | Mermaid | Sources Read |
+|---|---|---|---|---|---|
+| `comprehensive` | ≥ 200 | ≥ 10 | ≥ 3 | ≥ 1 | ≥ 5 |
+| `outline` | ≥ 50 | ≥ 3 | ≥ 1 | ≥ 1 | ≥ 3 |
+| `interactive` | ≥ 20 | — | — | ≥ 1 | ≥ 2 |
+
+### Пороги для non-focus-глав (содержит units с `is_focus: false`)
+
+Применяйте пороги из `goal.json.depth_mode` (по умолчанию `"outline"`):
+- `comprehensive` → full gate (таблица выше)
+- `outline` → lighter gate (таблица выше)
+- `interactive` → minimal gate (таблица выше)
+
+### Cross-reference-главы (содержит units с `has_focus_dependency: true`)
+
+- Обязательно опишите в теле главы, как эта глава **использует** фокус-модуль (импорты, вызовы, зависимости).
+- Пороги применяются как для non-focus-глав (из `goal.json.depth_mode`).
+
+### `user_custom` главы
+
+- Только existence + ≥ 10 non-blank lines outside code fences (без дополнительных порогов).
+
+**Falling below these triggers a reject by `scripts/coverage-check.py` and a Phase 4 loopback in which the main agent re-invokes you.**
 
 ---
 

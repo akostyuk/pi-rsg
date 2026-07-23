@@ -44,6 +44,21 @@ Produce a draft of the assigned chapter and report completion to the main agent.
 - Emphasised perspectives: {perspectives}
 - Existing documentation: {existing_docs}
 
+{# Focus context (если focus.path установлен)
+- Focus path: {focus_path} (если не пустой)
+- Focus goal: {focus_goal}
+- Focus depth mode: {focus_depth_mode}
+  → Эта глава — focus-глава (contains units with is_focus: true)?
+    Применяйте пороги из focus.depth_mode:
+    - comprehensive → ≥ 200 lines / ≥ 10 REFs / ≥ 3 code blocks / ≥ 1 Mermaid / ≥ 5 Sources Read
+    - outline → ≥ 50 lines / ≥ 3 REFs / ≥ 1 Mermaid / ≥ 3 Sources Read
+    - interactive → ≥ 20 lines / ≥ 1 Mermaid
+  → Эта глава — non-focus-глава?
+    Применяйте пороги из goal.json.depth_mode (по умолчанию "outline").
+  → Эта глава — cross-reference (has_focus_dependency: true)?
+    Обязательно опишите, как эта глава использует фокус-модуль (импорты, вызовы).
+#}
+
 [Granularity interpretation]
 - High-level overview: macro structure only. Do not delve into class internals.
 - Medium: macro + middle units (classes, functions, endpoints). Method-level details may be omitted.

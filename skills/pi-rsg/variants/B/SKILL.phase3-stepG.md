@@ -24,12 +24,22 @@ Corresponding real sources (Read these):
 
 Draft output path: rds/analysis/<session_name>/drafts/05-data-model.md
 
-Quality bar:
-- Body ≥ 200 lines
-- [REF: path:start-end] ≥ 10
-- fenced code blocks ≥ 3
-- Mermaid diagrams ≥ 1 (ER diagram)
-- ≥ 5 files under ## Sources Read
+Quality bar (зависит от типа главы):
+{# Если focus.depth_mode == "comprehensive"
+- Body ≥ 200 lines / ≥ 10 REFs / ≥ 3 code blocks / ≥ 1 Mermaid / ≥ 5 Sources Read
+#}
+{# Если focus.depth_mode == "outline"
+- Body ≥ 50 lines / ≥ 3 REFs / ≥ 1 Mermaid / ≥ 3 Sources Read
+#}
+{# Если focus.depth_mode == "interactive"
+- Body ≥ 20 lines / ≥ 1 Mermaid
+#}
+{# Если focus.path пустой или "." (no focus)
+- Применяйте пороги из goal.json.depth_mode (по умолчанию "outline")
+  - comprehensive → full gate
+  - outline → ≥ 50 lines / ≥ 3 REFs / ≥ 1 Mermaid / ≥ 3 Sources Read
+  - interactive → ≥ 20 lines / ≥ 1 Mermaid
+#}
 
 [mode B IMPORTANT] In the subagent return text, include **only the path and a
 summary** — do NOT paste the chapter body. Save the detail questions to

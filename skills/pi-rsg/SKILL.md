@@ -155,16 +155,57 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
        1. `Русский (Russian)`
        2. `English`
      - `allow_multiple = false`, `allow_free_text = false`
-   - Map the selected label to `output_language`: `Русский (Russian)` → `"ru"`, `English` → `"en"`. Persistence to `goal.json` happens together with the other answers in Step 5.
+   - Map the selected label to `output_language`: `Русский (Russian)` → `"ru"`, `English` → `"en"`. Persistence to `goal.json` happens together with the other answers in Step 6.
    - **Default policy (Russian-base)**: when the user submits without changing the highlighted choice, treat the answer as `"ru"`. This matches the pi-rsg upstream policy.
    - **Parent-harness hint precedence**: when the parent harness injects a `userUiLanguage` hint into the initial prompt, use that hint to decide which choice is **pre-highlighted** (`ru` highlights `Русский (Russian)`; `en` highlights `English`). The hint never overrides the user's explicit selection. Priority order:
      1. The user's explicit click in this step (highest)
      2. `userUiLanguage` hint passed from the parent harness's initial prompt
      3. Hard default `"ru"` (lowest)
-   - **All natural-language output from Step 4 onward** — `AskUserQuestion` bodies and choices, confirmation summaries, chapter titles, generated spec body, `questions.json` body text, etc. — is rendered in the language selected here (see Design Principle #11).
+   - **All natural-language output from Step 5 onward** — `AskUserQuestion` bodies and choices, confirmation summaries, chapter titles, generated spec body, `questions.json` body text, etc. — is rendered in the language selected here (see Design Principle #11).
    - **Resume mode**: when `rds/analysis/<session_name>/goal.json` already exists, read the persisted `output_language` and skip this step entirely.
 
-4. **Run the 5 goal-definition questions**
+3.5. **Define Focus Area & Scope**
+   - **Purpose:** Let the user specify which part of the codebase should be the **primary subject of deep investigation**, while the system is still studied as a whole. The focus module gets deeper coverage; all other modules are studied to understand their relationship to the focus.
+   - Use `AskUserQuestion` with three sections (presented in the `output_language` selected in Step 3):
+
+     **Section A — Focus path (what to study deeply):**
+     - Prompt: `Укажите путь к модулю/пакету, который является основным предметом глубокого исследования. Оставьте пустым, если исследуется вся система целиком. / Specify the path to the module/package that is the primary subject of deep investigation. Leave empty if the entire system is studied equally.`
+     - Input type: free-form text (path)
+     - Default: empty string `""` (means `"."` — no focus, all modules equal)
+     - Examples: `src/api/`, `modules/auth/`, `services/payment/`, `src/exports/reporting/`
+     - **Validation:** if the path is non-empty, verify it exists within the project root. If it does not exist, warn the user and offer to reset to empty (no focus) or correct the path. Do NOT abort — the user can always choose to study the entire system equally.
+
+     **Section B — Focus goal (why this module?):**
+     - Prompt: `Зачем нужен углублённый анализ этого модуля? / Why is deep analysis of this module needed?`
+     - Choices (with free-form fallback):
+       1. `Onboarding нового разработчика на этот модуль / New developer onboarding`
+       2. `Аудит безопасности / Security audit`
+       3. `Подготовка к рефакторингу / Refactoring preparation`
+       4. `Миграция данных / Data migration`
+       5. `Compliance / регуляторная проверка / Compliance`
+       6. `Другое (free-form) / Other`
+     - Persist as `focus.goal` in `goal.json`.
+
+     **Section C — Depth mode (how deep to go into the focus):**
+     - Prompt: `Какой уровень детализации предпочтителен для фокус-модуля? / What level of granularity is preferred for the focus module?`
+     - Choices:
+       1. `Comprehensive — полная спецификация (≥200 строк, ≥10 REF, ≥1 Mermaid на главу) / Full spec`
+       2. `Outline — обзорные таблицы + Mermaid + список кандидатов на углубление (по умолчанию) / Overview`
+       3. `Interactive — только обзор, детали по запросу пользователя / Overview only`
+     - Map to `focus.depth_mode`: `"comprehensive"`, `"outline"`, or `"interactive"`.
+     - **Default:** if focus.path is empty (no focus), this value is ignored and the system uses `depth_mode` from `goal.json` (default: `"outline"`) for all chapters equally.
+
+   - **Persist focus to `goal.json`:**
+     ```json
+     "focus": {
+       "path": "src/api/",
+       "goal": "onboarding",
+       "depth_mode": "outline"
+     }
+     ```
+   - **Backward compatibility:** when `rds/analysis/<session_name>/goal.json` already exists (resume mode), read the persisted `focus` object. If it is missing, treat as `{ "path": ".", "goal": "", "depth_mode": "outline" }` (no focus, all modules equal).
+
+5. **Run the 5 goal-definition questions**
    - Use `AskUserQuestion` to ask the following 6 questions in sequence. **Question bodies, choice labels, and free-form-input placeholders are all rendered in the `output_language` selected in Step 3.** The choice labels below are shown when `output_language == "ru"`; the agent dynamically translates them when `output_language == "en"` (enum values such as `primary_reader: "maintenance_developer"` stay as language-independent English enums in `goal.json`). Each question is choice-based first with a free-form field as a fallback.
    - **Question-text quality contract (applies to every `AskUserQuestion` call in every phase)**:
      1. **NEVER JSON-escape characters.** Emit raw UTF-8 only. If you find yourself writing `\uXXXX` form inside the `question` or `choices` strings, that is a defect — decode it before emitting.
@@ -223,19 +264,29 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    - Other (free-form integer ≥ 1)
    - **Mapping**: same as Q6. Persist as `phase4_parallelism` in `goal.json`. Default: `1`.
 
-5. **Extract `user_custom_deliverables` from `free_text_notes`**
+6. **Extract `user_custom_deliverables` from `free_text_notes`**
+   - **Mandatory.** Before persisting `goal.json`, scan `free_text_notes` for explicit deliverable filenames using the regex `\b[a-z][a-z0-9_-]*\.md\b` (case-insensitive). De-duplicate and exclude any name matching the chapter-naming regex `^(0\d|[1-9]\d)-[a-z0-9-]+\.md$` or the reserved names `00-metadata.md` / `99-unresolved.md` / `traceability.md` (those are handled by the standard chapter pipeline).
+   - The remaining names are **user-promised custom deliverables**. They MUST appear in `final/` at Phase 6 completion; missing any of them is a hard failure (check 12 in `coverage-check.py`).
+   - Example: `free_text_notes = "顧客向けドキュメント。Mermaid図による視覚的説明と、紙芝居的な manual.md を含める。"` → `user_custom_deliverables = ["manual.md"]`.
+   - If the free-form text is empty or contains no `*.md` references, the list is `[]`.
+   - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid / Sources Read minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
    - **Mandatory.** Before persisting `goal.json`, scan `free_text_notes` for explicit deliverable filenames using the regex `\b[a-z][a-z0-9_-]*\.md\b` (case-insensitive). De-duplicate and exclude any name matching the chapter-naming regex `^(0\d|[1-9]\d)-[a-z0-9-]+\.md$` or the reserved names `00-metadata.md` / `99-unresolved.md` / `traceability.md` (those are handled by the standard chapter pipeline).
    - The remaining names are **user-promised custom deliverables**. They MUST appear in `final/` at Phase 6 completion; missing any of them is a hard failure (check 12 in `coverage-check.py`).
    - Example: `free_text_notes = "顧客向けドキュメント。Mermaid図による視覚的説明と、紙芝居的な manual.md を含める。"` → `user_custom_deliverables = ["manual.md"]`.
    - If the free-form text is empty or contains no `*.md` references, the list is `[]`.
    - User-custom files are **exempt from comprehensive per-chapter quality gates** (the 200-lines / 10-REFs / Mermaid / Sources Read minimums) because their quality bar is the user's intent recorded in `free_text_notes`, not the source-derived spec-chapter bar. Only existence + non-empty body is enforced.
 
-6. **Persist to `goal.json`**
-   - Save the language choice from Step 3, the 7 answers from Step 4 (Q1–Q7), and the `user_custom_deliverables` array from Step 5 as a structured `goal.json` under `rds/analysis/<session_name>/`. Schema:
+7. **Persist to `goal.json`**
+   - Save the language choice from Step 3, the focus configuration from Step 3.5, the 7 answers from Step 5 (Q1–Q7), and the `user_custom_deliverables` array from Step 6 as a structured `goal.json` under `rds/analysis/<session_name>/`. Schema:
 
    ```json
    {
      "output_language": "ru",
+     "focus": {
+       "path": "src/api/",
+       "goal": "onboarding",
+       "depth_mode": "outline"
+     },
      "primary_reader": "maintenance_developer",
      "reader_action": "code_change",
      "granularity": "medium",
@@ -248,18 +299,22 @@ Right after the skill starts, fix the scope and the goal. Every later decision d
    }
    ```
    - `output_language` is required and must be one of: `"ru"` or `"en"`. Other enum fields (`primary_reader`, `reader_action`, `granularity`, `perspectives`, `existing_docs`) are language-independent English enums (localized only at display time using `output_language`).
+   - **`focus`** is an object (possibly missing in old sessions for backward compatibility):
+     - `focus.path`: string, default `"."` (means no focus — all modules studied equally). When non-empty, it is a relative path within the project root that identifies the module/package to be studied in depth.
+     - `focus.goal`: string, default `""`. Describes why this module is the focus (e.g. `"onboarding"`, `"security_audit"`, `"refactoring"`).
+     - `focus.depth_mode`: string, one of `"comprehensive"`, `"outline"` (default), or `"interactive"`. When focus.path is `"."` (no focus), this value is ignored and all chapters use `depth_mode` from `goal.json` (default: `"outline"`).
    - `user_custom_deliverables` is a (possibly empty) array of file names that the user explicitly requested in `free_text_notes`. These bypass the chapter-naming regex; their filenames are preserved verbatim. Phase 2 adds them to `wbs.json` as `kind: "user_custom"` chapters; Phase 6 verifies every one of them exists in `final/`.
    - `phase3_subagent_parallelism` is a positive integer (default: `1`). It controls how many chapter-investigator sub-agents run concurrently in Phase 3 STEP G. Value `1` means sequential (one at a time); values > 1 mean batches of that size. The main agent emits N `subagent()` calls, waits for all N results, then emits the next batch. This balances speed against main-agent context growth.
    - `phase4_parallelism` is a positive integer (default: `1`). It controls how many chapter-verifier sub-agents run concurrently in Phase 4. Value `1` means sequential (one at a time); values > 1 mean batches of that size.
 
-7. **Phase 0 complete**
+8. **Phase 0 complete**
    - Update `state.json` and proceed to Phase 1.
 
 ### Phase-specific cautions
 - Minimise the user's burden by leading with choice-based UI; never force the user to type the same thing twice.
 - Treat the free-form field as a "none of the above" safety net; it is unnecessary when the user picked one of the choices.
 - The goal influences every later phase, so do not skip summarising the answers and asking the user to confirm. **The confirmation summary is also rendered in `output_language`.**
-- The output-language selection (Step 3) is **bilingual only for that first dialogue**. From Step 4 on, use the confirmed language exclusively. If the user requests a language switch mid-flight, update `goal.json.output_language` and individually check whether existing `drafts/` and `questions.json` bodies need to be re-rendered.
+- The output-language selection (Step 3) is **bilingual only for that first dialogue**. From Step 5 on, use the confirmed language exclusively. If the user requests a language switch mid-flight, update `goal.json.output_language` and individually check whether existing `drafts/` and `questions.json` bodies need to be re-rendered.
 
 ---
 
@@ -278,9 +333,24 @@ Get a rough mental model of the codebase via a shallow reconnaissance, then pick
    - Existing documentation (`README.md`, `docs/`, `wiki`, etc.)
    - Build/deploy configuration (`Dockerfile`, `Makefile`, CI configs, etc.)
    - Language mix and estimated line counts
+   - **Focus Area** (if `goal.json.focus.path` is non-empty and not `"."`):
+     - Add a `## Focus Area` section to `recon-report.md` describing:
+       - Which path/module is the focus (from `goal.json.focus.path`)
+       - What files it contains (list top-level files/dirs within the focus path)
+       - How it connects to the rest of the system (imports, API calls, dependencies, data flows)
+       - List of modules that USE the focus module (reverse dependencies)
+     - Mark files belonging to the focus path in the file tree listing (e.g. with `[FOCUS]` annotation)
+     - If `goal.json.focus.goal` is set, mention the context (e.g. "This module is the subject of a new developer onboarding")
+     - If `goal.json.focus.path` is empty or `"."`, skip this section (no focus — all modules studied equally)
 
 2. **Present template candidates**
    - Consult `references/template-catalog.md` and propose candidates suitable for the target codebase.
+   - **If `goal.json.focus.path` is non-empty and not `"."`, consider the focus path when recommending templates:**
+     - If focus path contains API-related files (routes, controllers, endpoints) → prefer `api-service.md`
+     - If focus path contains batch/job processing files (workers, cron, queues) → prefer `batch-system.md`
+     - If focus path contains web frontend files (views, templates, components) → prefer `web-app.md`
+     - If focus path contains library/SDK files (exports, public API, no framework) → prefer `library-sdk.md`
+     - If focus path is ambiguous or spans multiple layers → recommend `web-app.md` or `api-service.md` (whichever best fits the overall system)
    - Use `AskUserQuestion` to present the candidates to the user.
 
    **Example template choices**:
@@ -488,6 +558,11 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
      - Java: classes, methods, endpoints, entities
      - JavaScript/TypeScript: exported functions, components, routes
      - **Ruby on Rails**: always cover the 14-item "Ruby on Rails catalogue" in `inventory-units.md` (Controller/Model/Concern/Service/Job/Mailer/Helper/Lib/Migration/Route group/View group/JS module/Config/Mailer template).
+   - **Focus marking** (if `goal.json.focus.path` is non-empty and not `"."`):
+     - For each inventory unit, check if its `file` path starts with `goal.json.focus.path` (after normalizing paths — strip leading/trailing slashes, handle `./` prefixes).
+     - Add `"is_focus": true` to units whose file belongs to the focus path.
+     - All other units get `"is_focus": false`.
+     - **Reverse dependencies**: also mark units that IMPORT or CALL focus units as `"has_focus_dependency": true` (these units need to describe their relationship to the focus in their chapters).
 
    **STEP D**: macro/group/module style types are forbidden. Always 1 class / 1 module / 1 action per row.
 
@@ -502,6 +577,8 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
          "name": "IssuesController",
          "file": "app/controllers/issues_controller.rb",
          "line": 20,
+         "is_focus": true,
+         "has_focus_dependency": false,
          "covered_by": [],
          "related_source_ids": ["SRC-0142", "SRC-0143"]
        }
@@ -510,6 +587,8 @@ Finalise the skeleton of the spec, decompose the work to fill each chapter into 
    ```
 
    `related_source_ids` links to `source-map.json` units; this enables the MECE check in Phase 4.
+   - `is_focus` (boolean): `true` if this unit's file belongs to `goal.json.focus.path` (when focus is set), `false` otherwise.
+   - `has_focus_dependency` (boolean): `true` if this unit imports, calls, or depends on a focus unit (useful for chapters that USE the focus module but are not themselves in the focus path).
 
 4. **Map WBS chapters to inventory items**
    - For each inventory item, decide which chapter covers it in the WBS.
@@ -577,6 +656,31 @@ In `outline` / `interactive` mode the following `comprehensive`-only STEPs do NO
 - "5 Sources Read or more" required count
 
 Instead, use the **outline-mode writing rules** (below).
+
+---
+
+### Focus-aware depth prioritization (NEW)
+
+When `goal.json.focus.path` is non-empty and not `"."`, Phase 3 applies **different depth modes** to different chapters:
+
+| Chapter type | Depth mode applied | Quality bar |
+|---|---|---|
+| **Focus chapters** (contain units with `is_focus: true` from `inventory.json`) | `goal.json.focus.depth_mode` (from Step 3.5) | If `comprehensive` → full gate; if `outline` → table-first; if `interactive` → overview only |
+| **Non-focus chapters** (contain units with `is_focus: false`) | `goal.json.depth_mode` (from Phase 1.5, default: `"outline"`) | Standard quality bar for that depth_mode |
+| **Cross-reference chapters** (contain units with `has_focus_dependency: true`) | Must explicitly describe how they USE the focus module (regardless of depth_mode) | At minimum: list of focus units they import/call, with brief description of the relationship |
+
+**How to determine "focus chapters":**
+1. Read `inventory.json` and find all units with `is_focus: true`.
+2. Map these units to chapters via `wbs.json.chapters[*].assigned_inventory_ids`.
+3. Chapters that have at least one `assigned_inventory_id` pointing to a unit with `is_focus: true` are **focus chapters**.
+4. Chapters that have at least one `assigned_inventory_id` pointing to a unit with `has_focus_dependency: true` are **cross-reference chapters** — they must describe their relationship to the focus module.
+
+**Priority order for investigation:**
+1. Focus chapters first (they get the deepest coverage).
+2. Cross-reference chapters second (they need to describe focus relationships).
+3. Remaining chapters in standard order.
+
+**Note:** When `goal.json.focus.path` is empty or `"."` (no focus), all chapters are treated equally and use `goal.json.depth_mode`.
 
 ---
 
@@ -893,6 +997,17 @@ Run inventory cross-check, per-chapter quality metrics, MECE check, and consiste
    - inventory count (min: `max(50, files / 20)`)
    - macro-type INV ratio (max 20%)
    - covered_by fill rate (90%)
+   - **Focus-aware per-chapter gates** (see below):
+     - When `goal.json.focus.path` is non-empty and not `"."`:
+       - **Focus chapters** (contain units with `is_focus: true`): quality gates are applied according to `goal.json.focus.depth_mode`:
+         - `comprehensive` → full gate (≥ 200 lines, ≥ 10 REFs, ≥ 3 code blocks, ≥ 1 Mermaid, ≥ 5 Sources Read)
+         - `outline` → lighter gate (≥ 50 lines, ≥ 3 REFs, ≥ 1 Mermaid, ≥ 3 Sources Read)
+         - `interactive` → minimal gate (≥ 20 lines, ≥ 1 Mermaid)
+       - **Non-focus chapters** (contain units with `is_focus: false`): quality gates are applied according to `goal.json.depth_mode` (default: `"outline"`):
+         - `comprehensive` → full gate
+         - `outline` → lighter gate
+         - `interactive` → minimal gate
+     - When `goal.json.focus.path` is empty or `"."` (no focus): all chapters use `goal.json.depth_mode` (standard behavior).
    - per-chapter body lines (≥ 200), `[REF:]` count (≥ 10), code blocks (≥ 3), Mermaid (≥ 1), Sources Read items (≥ 5) — **applied only to `kind: "standard"` chapters; `user_custom` chapters are exempt**
    - questions count (≥ 10), open ratio (≤ 20%)
    - MECE coverage (≥ 70%)
@@ -929,12 +1044,25 @@ Run inventory cross-check, per-chapter quality metrics, MECE check, and consiste
      prompt="""
 You are the chapter-verifier handling rds/analysis/<session_name>/drafts/05-data-model.md (kind: standard).
 
-Verify this chapter against the quality gates:
-- Body lines (excluding code blocks and comments): ≥ 200
-- [REF: path:start-end] citations: ≥ 10, with precise line ranges
-- fenced code blocks: ≥ 3
-- Mermaid diagrams (```mermaid): ≥ 1
-- ## Sources Read section: ≥ 5 files listed
+First, check goal.json for focus configuration:
+- If `goal.json.focus.path` is non-empty and not ".":
+  - Determine if this chapter is a "focus chapter" (contains units with `is_focus: true` from inventory.json).
+  - If focus chapter: apply quality gates based on `goal.json.focus.depth_mode`:
+    - `comprehensive` → full gate (≥ 200 lines, ≥ 10 REFs, ≥ 3 code blocks, ≥ 1 Mermaid, ≥ 5 Sources Read)
+    - `outline` → lighter gate (≥ 50 lines, ≥ 3 REFs, ≥ 1 Mermaid, ≥ 3 Sources Read)
+    - `interactive` → minimal gate (≥ 20 lines, ≥ 1 Mermaid)
+  - If non-focus chapter: apply quality gates based on `goal.json.depth_mode` (default: "outline"):
+    - `comprehensive` → full gate
+    - `outline` → lighter gate
+    - `interactive` → minimal gate
+- If `goal.json.focus.path` is empty or "." (no focus): apply standard quality gates for `goal.json.depth_mode`.
+
+Verify this chapter against the appropriate quality gates:
+- Body lines (excluding code blocks and comments): [gate-dependent]
+- [REF: path:start-end] citations: [gate-dependent], with precise line ranges
+- fenced code blocks: [gate-dependent]
+- Mermaid diagrams (```mermaid): [gate-dependent]
+- ## Sources Read section: [gate-dependent] files listed
 
 Read the file with the Read tool, count each metric, and return a structured report:
 - Status: PASS or FAIL

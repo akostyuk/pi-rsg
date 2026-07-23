@@ -24,17 +24,38 @@ You verify the chapter in an isolated context and produce a detailed quality rep
 
 ---
 
-## Quality gates (for `kind: "standard"` chapters)
+## Quality gates (dynamic, focus-aware)
 
-| Item | Minimum | Check method |
-|------|---------|--------------|
-| Body lines (excluding code blocks and comments) | **≥ 200 lines** | Count non-blank, non-code-fence, non-comment lines |
-| `[REF: path:start-end]` citations | **≥ 10** | Grep for `[REF:` pattern with precise line ranges |
-| fenced code blocks | **≥ 3** | Count ```` ``` ```` pairs (excluding mermaid) |
-| Mermaid diagrams (` ```mermaid `) | **≥ 1** | Grep for ```` ```mermaid ```` |
-| `## Sources Read` section | **≥ 5** files listed | Find `## Sources Read` heading and count bullet items |
+**Перед проверкой:** прочитайте `goal.json` и `inventory.json`:
+1. Есть ли `goal.json.focus.path` (не пустой и не `"."`)?
+2. Содержит ли глава units с `is_focus: true`? (это **focus-глава**)
+3. Или содержит ли глава units с `has_focus_dependency: true`? (это **cross-reference-глава**)
 
-**For `kind: "user_custom"` chapters**: only check existence + non-empty body (≥ 10 non-blank lines outside code fences).
+### Пороги для focus-глав (содержит units с `is_focus: true`)
+
+Применяйте пороги из `goal.json.focus.depth_mode`:
+
+| `focus.depth_mode` | Body lines | `[REF:]` | Code blocks | Mermaid | Sources Read | Check method |
+|---|---|---|---|---|---|---|
+| `comprehensive` | ≥ 200 | ≥ 10 | ≥ 3 | ≥ 1 | ≥ 5 | Count non-blank, non-code-fence, non-comment lines / Grep for patterns |
+| `outline` | ≥ 50 | ≥ 3 | ≥ 1 | ≥ 1 | ≥ 3 | Same methods, lower thresholds |
+| `interactive` | ≥ 20 | — | — | ≥ 1 | ≥ 2 | Only Mermaid + body presence |
+
+### Пороги для non-focus-глав (содержит units с `is_focus: false`)
+
+Применяйте пороги из `goal.json.depth_mode` (по умолчанию `"outline"`):
+- `comprehensive` → full gate (таблица выше)
+- `outline` → lighter gate (таблица выше)
+- `interactive` → minimal gate (таблица выше)
+
+### Cross-reference-главы (содержит units с `has_focus_dependency: true`)
+
+- Проверяйте стандартные пороги для non-focus-глав.
+- Дополнительно: проверьте, что в теле главы описано использование фокус-модуля (импорты, вызовы, зависимости).
+
+### `user_custom` главы
+
+- Только existence + ≥ 10 non-blank lines outside code fences (без дополнительных порогов).
 
 ---
 

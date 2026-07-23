@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
+### Added
+- **Focus mode** (Phase 0 Step 3.5): user can specify a `focus.path` (module/package path) to be the primary subject of deep investigation, while the entire system is still studied. Focus module gets deeper coverage; all other modules are studied to understand their relationship to the focus.
+  - `goal.json.focus` object: `{ path: string, goal: string, depth_mode: string }` — `path` identifies the focus module (default: `"."` = no focus, all modules equal), `goal` describes why (onboarding, security audit, refactoring, migration, compliance), `depth_mode` controls quality thresholds (`comprehensive` / `outline` / `interactive`).
+  - **Phase 1 (Recon)**: adds `## Focus Area` section to `recon-report.md` describing focus module files and how it connects to the rest of the system. Template recommendation considers focus path (API module → `api-service.md`, etc.).
+  - **Phase 2 (WBS)**: `inventory.json` units marked with `is_focus: true/false` and `has_focus_dependency: true/false`.
+  - **Phase 3 (Investigate)**: focus chapters (containing focus units) run through `focus.depth_mode`; non-focus chapters through `goal.json.depth_mode` (default: `outline`). Cross-reference chapters (that USE the focus module) must describe their relationships.
+  - **Phase 4 (Verify)**: focus-aware quality gates — focus chapters checked against `focus.depth_mode` thresholds, non-focus chapters against `goal.json.depth_mode`.
+  - **Dynamic quality gates** (all auxiliary files): `chapter-investigator.md`, `chapter-verifier.md`, `subagent-prompt.md`, `variants/B/chapter-investigator.md`, `variants/B/SKILL.phase3-stepG.md` — all updated with focus-aware threshold tables (comprehensive: full gate; outline: lighter gate; interactive: minimal gate).
+  - **Backward compatibility**: old `goal.json` without `focus` field works as `focus.path = "."` (no focus, all modules studied equally).
+
+### Changed
 - **`rds/analysis/<session_name>/skill/` marker directory**: Phase 0 Step 2 no longer creates an empty `skill/` subdirectory. This directory was a dead marker — never read or written by any script, agent instruction, or output artifact. Leftover from a pre-pi staging design.
 - **`postinstall.js`**: no longer needed. Mermaid validation patch is now applied at runtime by `validate-mermaid.mjs` (see below), making a postinstall script unnecessary — especially since `pi install` for local packages does not execute npm lifecycle scripts.
 

@@ -62,6 +62,7 @@ skills/pi-rsg/
 | **Sources Read** | At the start of each chapter — a list of read files (≥5) |
 | **Skeleton cap** | Phase 2 skeletons ≤5 lines. Everything else — Phase 3 |
 | **Zero deps** | All scripts use only Python stdlib, no `pip install` |
+| **Focus backward compat** | Old `goal.json` without `focus` field works as `focus.path = "."` (no focus, all modules equal) |
 
 ## Depth Modes (depth_mode)
 
@@ -70,6 +71,60 @@ skills/pi-rsg/
 | `comprehensive` | Full specification: ≥200 lines, ≥10 REFs, ≥1 Mermaid per chapter | For small projects, when full documentation is needed |
 | `outline` (default) | Overview tables + Mermaid + list of candidates for deepening | For most projects, quick overview |
 | `interactive` | Overview only, details on user request | For large codebases, iterative exploration |
+
+## Focus Mode (NEW)
+
+Focus mode lets you specify **which part of the codebase should be the primary subject of deep investigation**, while the system is still studied as a whole. The focus module gets deeper coverage; all other modules are studied to understand their relationship to the focus.
+
+### How it works
+
+1. **Phase 0 Step 3.5** — after language selection, you specify:
+   - **Focus path**: path to the module/package to study deeply (e.g. `src/api/`, `modules/auth/`). Empty = no focus (all modules equal).
+   - **Focus goal**: why this module? (onboarding, security audit, refactoring, migration, compliance)
+   - **Focus depth**: how deep to go into the focus (`comprehensive` / `outline` / `interactive`)
+
+2. **Phase 1 (Recon)** — adds a `## Focus Area` section to `recon-report.md` describing the focus module, its files, and how it connects to the rest of the system.
+
+3. **Phase 2 (WBS)** — marks inventory units with `is_focus: true/false` and `has_focus_dependency: true/false`.
+
+4. **Phase 3 (Investigate)** — applies different depth modes:
+   - **Focus chapters** (containing focus units) → use `focus.depth_mode`
+   - **Non-focus chapters** → use `goal.json.depth_mode` (default: `outline`)
+   - **Cross-reference chapters** (that USE the focus module) → must describe their relationship to the focus
+
+5. **Phase 4 (Verify)** — applies focus-aware quality gates:
+   - Focus chapters checked against `focus.depth_mode` gates
+   - Non-focus chapters checked against `goal.json.depth_mode` gates
+
+### Example `goal.json` with focus
+
+```json
+{
+  "output_language": "ru",
+  "focus": {
+    "path": "src/api/",
+    "goal": "onboarding",
+    "depth_mode": "outline"
+  },
+  "primary_reader": "maintenance_developer",
+  ...
+}
+```
+
+### When to use Focus mode
+
+- **Large monorepos** — you want deep docs for one service, not the entire codebase.
+- **Targeted onboarding** — a new developer joins one team and needs deep docs for their module.
+- **Security audit** — you need comprehensive docs for the auth module, but overview for the rest.
+- **Migration preparation** — you're migrating one subsystem and need deep docs for it.
+
+### When NOT to use Focus mode
+
+- **Small projects** — all modules are equally important.
+- **Full system documentation** — you need equal depth for all chapters.
+- **No clear focus** — when the whole system is the subject.
+
+In these cases, leave `focus.path` empty (or omit the `focus` object entirely for backward compatibility).
 
 ## Work Modes (Phase 3)
 
